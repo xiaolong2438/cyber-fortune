@@ -6,7 +6,7 @@ class ConfigManager {
         this.defaultConfig = {
             apiUrl: 'https://api.deepseek.com',
             apiKey: '',
-            model: 'deepseek-r1',
+            model: '',
             provider: 'deepseek'
         };
         this.apiClient = new ApiClient();
@@ -16,7 +16,7 @@ class ConfigManager {
             deepseek: {
                 name: 'DeepSeek',
                 baseUrl: 'https://api.deepseek.com',
-                defaultModels: ['deepseek-r1', 'deepseek-chat'],
+                defaultModels: [],
                 headers: {
                     'Content-Type': 'application/json'
                 }
@@ -24,7 +24,7 @@ class ConfigManager {
             openai: {
                 name: 'OpenAI',
                 baseUrl: 'https://api.openai.com',
-                defaultModels: ['gpt-4', 'gpt-3.5-turbo'],
+                defaultModels: [],
                 headers: {
                     'Content-Type': 'application/json'
                 }
@@ -32,7 +32,7 @@ class ConfigManager {
             anthropic: {
                 name: 'Anthropic',
                 baseUrl: 'https://api.anthropic.com',
-                defaultModels: ['claude-3-sonnet', 'claude-3-haiku'],
+                defaultModels: [],
                 headers: {
                     'Content-Type': 'application/json',
                     'anthropic-version': '2023-06-01'
@@ -41,7 +41,7 @@ class ConfigManager {
             alibaba: {
                 name: '阿里巴巴',
                 baseUrl: 'https://dashscope.aliyuncs.com',
-                defaultModels: ['qwen-max', 'qwen-plus'],
+                defaultModels: [],
                 headers: {
                     'Content-Type': 'application/json'
                 }
@@ -49,7 +49,7 @@ class ConfigManager {
             zhipu: {
                 name: '智谱AI',
                 baseUrl: 'https://open.bigmodel.cn/api/paas',
-                defaultModels: ['glm-4', 'glm-3-turbo'],
+                defaultModels: [],
                 headers: {
                     'Content-Type': 'application/json'
                 }
@@ -74,28 +74,35 @@ class ConfigManager {
     getApiUrl(provider, customUrl = '') {
         const config = this.getProviderConfig(provider);
         const baseUrl = customUrl || config.baseUrl;
+        const cleanUrl = this.normalizeApiBaseUrl(baseUrl);
         
-        // 如果是自定义URL，直接返回拼接的完整URL
-        if (customUrl) {
-            // 确保URL不以/结尾
-            const cleanUrl = baseUrl.replace(/\/$/, '');
-            return `${cleanUrl}/v1/chat/completions`;
-        }
-        
-        // 使用默认配置
         if (provider === 'anthropic') {
             // Anthropic使用不同的端点
-            return `${baseUrl}/v1/messages`;
+            return `${cleanUrl}/v1/messages`;
         } else if (provider === 'alibaba') {
             // 阿里云使用不同的端点
-            return `${baseUrl}/api/v1/services/aigc/text-generation/generation`;
+            return `${cleanUrl}/api/v1/services/aigc/text-generation/generation`;
         } else if (provider === 'zhipu') {
             // 智谱AI使用不同的端点
-            return `${baseUrl}/v4/chat/completions`;
+            return `${cleanUrl}/v4/chat/completions`;
         } else {
             // 标准OpenAI兼容格式
-            return `${baseUrl}/v1/chat/completions`;
+            return `${cleanUrl}/v1/chat/completions`;
         }
+    }
+
+    // 将基础地址、模型端点或聊天端点统一还原为提供商基础地址
+    normalizeApiBaseUrl(apiUrl) {
+        let cleanUrl = String(apiUrl || '').trim().replace(/\/+$/, '');
+        cleanUrl = cleanUrl.replace(
+            /\/api\/v1\/(?:models|services\/aigc\/text-generation\/generation)$/i,
+            ''
+        );
+        cleanUrl = cleanUrl.replace(
+            /\/(?:v1\/(?:chat\/completions|responses|models|messages)|v4\/(?:chat\/completions|models))$/i,
+            ''
+        );
+        return cleanUrl.replace(/\/(?:v1|v4)$/i, '');
     }
 
     // 获取模型列表URL
@@ -103,10 +110,16 @@ class ConfigManager {
         const config = this.getProviderConfig(provider);
         const baseUrl = customUrl || config.baseUrl;
         
-        // 如果是自定义URL，直接返回拼接的完整URL
+        // 输入框可能是基础地址，也可能是完整聊天端点；先移除已知API后缀
         if (customUrl) {
-            // 确保URL不以/结尾
-            const cleanUrl = baseUrl.replace(/\/$/, '');
+            const cleanUrl = this.normalizeApiBaseUrl(baseUrl);
+
+            if (provider === 'alibaba') {
+                return `${cleanUrl}/api/v1/models`;
+            } else if (provider === 'zhipu') {
+                return `${cleanUrl}/v4/models`;
+            }
+
             return `${cleanUrl}/v1/models`;
         }
         
@@ -198,7 +211,7 @@ class ConfigManager {
 
         try {
             console.log('从API加载模型列表...');
-            const models = await this.apiClient.loadModels(modelsUrl, apiKey);
+            const models = await this.apiClient.loadModels(modelsUrl, apiKey, provider);
             
             // 过滤和标准化模型名称
             const filteredModels = this.filterModels(models);
@@ -298,20 +311,6 @@ class ConfigManager {
         } catch (error) {
             return { valid: false, error: error.message };
         }
-    }
-
-    // 获取推荐的模型列表（用于默认显示）
-    getRecommendedModels() {
-        return [
-            { id: 'deepseek-r1', name: 'DeepSeek-R1 (推荐)', provider: 'deepseek' },
-            { id: 'deepseek-chat', name: 'DeepSeek-Chat', provider: 'deepseek' },
-            { id: 'gpt-4', name: 'GPT-4', provider: 'openai' },
-            { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', provider: 'openai' },
-            { id: 'claude-3-sonnet', name: 'Claude-3 Sonnet', provider: 'anthropic' },
-            { id: 'claude-3-haiku', name: 'Claude-3 Haiku', provider: 'anthropic' },
-            { id: 'qwen-max', name: '通义千问-Max', provider: 'alibaba' },
-            { id: 'glm-4', name: '智谱GLM-4', provider: 'zhipu' }
-        ];
     }
 
     // 清除模型缓存

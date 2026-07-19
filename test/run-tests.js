@@ -7,21 +7,16 @@ if (typeof window === 'undefined') {
     const fs = require('fs');
     const path = require('path');
 
-    // 读取并执行name-calculator.js
+    // 读取并执行数据模块与起名模块
+    const kangxiPath = path.join(__dirname, '../js/data/kangxi-strokes.js');
+    const catalogPath = path.join(__dirname, '../js/data/name-character-data.js');
     const nameCalculatorPath = path.join(__dirname, '../js/name-calculator.js');
     let nameCalculatorCode = fs.readFileSync(nameCalculatorPath, 'utf8');
 
     // 创建一个模拟的window对象
     global.window = {};
-
-    // 修改代码以适应Node.js环境
-    // 移除构造函数外的属性定义，将其移到构造函数内
-    nameCalculatorCode = nameCalculatorCode.replace(
-        /(\s+)\/\/ 常用起名用字五行属性\s+this\.charWuXing = \{[\s\S]*?\};/,
-        function(match) {
-            return match.replace(/^\s+/gm, '        '); // 调整缩进
-        }
-    );
+    eval(fs.readFileSync(kangxiPath, 'utf8'));
+    eval(fs.readFileSync(catalogPath, 'utf8'));
 
     // 执行代码
     try {

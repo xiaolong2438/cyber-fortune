@@ -84,10 +84,33 @@ class NameCalculator {
                 '水': ['雨','雪','露','云','雾','润','湿','柔','软','清','汐','滢','沐','湉','泠','沁','泺','浣','涓','漪','湄','潇','潞','澜','澄','潆','澍','漩','滟','潋']
             }
         };
+
+        // The stroke table is authoritative for strokes; this catalog is a
+        // deliberately labelled, curated nameology classification.
+        this.characterCatalog = window.NameCharacterData?.catalog || [];
+        this.characterInfo = new Map(this.characterCatalog.map((item) => [item.char, item]));
+        this.classicPhrases = window.NameCharacterData?.phrases || [];
+        this.charWuXing = { '木': [], '火': [], '土': [], '金': [], '水': [] };
+        this.characterCatalog.forEach((item) => {
+            if (this.charWuXing[item.element]) this.charWuXing[item.element].push(item.char);
+        });
+        this.goodChars = {
+            '男': Object.fromEntries(Object.keys(this.charWuXing).map((element) => [element, [...this.charWuXing[element]]])),
+            '女': Object.fromEntries(Object.keys(this.charWuXing).map((element) => [element, [...this.charWuXing[element]]]))
+        };
+        this.commonSimplifiedSurnames = new Set('张刘陈杨赵黄吴孙胡马罗冯于邓许萧苏卢蒋贾叶钟谭邹陆顾龙钱汤欧阳'.split(''));
+        this._generationCounter = 0;
     }
 
     // 计算字的笔画数（完整版）
     getCharStrokes(char) {
+        const kangxiStrokes = window.KangxiStrokeData?.strokes;
+        const variant = window.KangxiStrokeData?.traditionalVariants?.[char];
+        const preferTraditional = Boolean(variant) && (this.characterInfo?.has(char) || this.commonSimplifiedSurnames?.has(char));
+        const lookupChar = preferTraditional ? variant : char;
+        if (kangxiStrokes && Number.isInteger(kangxiStrokes[lookupChar])) {
+            return kangxiStrokes[lookupChar];
+        }
         // 完整的汉字笔画数据库
         const strokesDatabase = {
             // 数字
@@ -426,6 +449,8 @@ class NameCalculator {
 
     // 生成名字建议
     generateNameSuggestions(surname, gender, baziResult, customConfig = {}) {
+        return this.generateSourcedNameSuggestions(surname, gender, baziResult, customConfig);
+        /* legacy generator retained below for compatibility with old reports */
         const neededWuXing = this.analyzeBaziWuXing(baziResult);
         const suggestions = [];
 
@@ -636,6 +661,143 @@ class NameCalculator {
             .slice(0, 10);
     }
 
+    getCharacterInfo(char) {
+        const item = this.characterInfo.get(char);
+        if (!item) return null;
+        const traditionalForm = window.KangxiStrokeData?.traditionalVariants?.[char] || char;
+        return {
+            char: item.char,
+            traditionalForm,
+            element: item.element,
+            strokes: this.getCharStrokes(item.char),
+            meaning: item.meaning
+        };
+    }
+
+    getCharactersByElementAndStrokes(element, strokes) {
+        return this.characterCatalog
+            .filter((item) => item.element === element && this.getCharStrokes(item.char) === Number(strokes))
+            .map((item) => item.char);
+    }
+
+    getPhraseSource(firstName) {
+        const phrase = this.classicPhrases.find((item) => item.text === firstName);
+        if (!phrase) return null;
+        return {
+            work: phrase.work,
+            section: phrase.section,
+            author: phrase.author,
+            quote: phrase.quote,
+            meaning: phrase.meaning
+        };
+    }
+
+    createSourcedSuggestion(surname, firstName, score, customType = '系统推荐', isCustom = false, neededWuXing = []) {
+        const chars = Array.from(firstName);
+        const characterDetails = chars.map((char) => this.getCharacterInfo(char) || {
+            char,
+            element: null,
+            strokes: this.getCharStrokes(char),
+            meaning: '未纳入姓名学整理字库，请人工复核'
+        });
+        const knownElements = characterDetails.map((item) => item.element).filter(Boolean);
+        const source = this.getPhraseSource(firstName) || {
+            work: isCustom ? '用户指定用字' : '待考字义',
+            section: '',
+            author: '',
+            quote: isCustom ? `用户指定组合“${firstName}”，未匹配到已核验的经典成语或诗句。` : '该组合暂无已核验的连续经典引文。',
+            meaning: isCustom ? '请结合家族字辈、音韵和语境进一步复核。' : '建议结合原典语境复核寓意。'
+        };
+        const wuGe = this.calculateWuGe(surname, firstName);
+        const sanCai = this.calculateSanCai(wuGe);
+        return {
+            fullName: surname + firstName,
+            firstName,
+            wuGe,
+            sanCai,
+            score: Math.min(100, Math.max(0, Math.round(score))),
+            wuXingMatch: knownElements,
+            isCustom,
+            customType,
+            source,
+            characterDetails
+        };
+    }
+
+    generateSourcedNameSuggestions(surname, gender, baziResult, customConfig = {}) {
+        const neededWuXing = this.analyzeBaziWuXing(baziResult || {});
+        const { firstChar, secondChar, candidateChars = [] } = customConfig || {};
+        const custom = [];
+        const addCustom = (firstName, type, bonus) => {
+            if (!firstName || Array.from(firstName).length !== 2 || custom.some((item) => item.firstName === firstName)) return;
+            const info = Array.from(firstName).map((char) => this.getCharacterInfo(char));
+            const match = info.filter(Boolean).filter((item) => neededWuXing.includes(item.element)).length;
+            custom.push(this.createSourcedSuggestion(surname, firstName, 75 + bonus + match * 4, type, true, neededWuXing));
+        };
+
+        if (firstChar && secondChar) addCustom(firstChar + secondChar, '完全指定', 10);
+        if (firstChar && !secondChar) {
+            this.classicPhrases.filter((item) => item.text.startsWith(firstChar)).slice(0, 8).forEach((item) => addCustom(item.text, '指定首字', 6));
+            candidateChars.forEach((char) => addCustom(firstChar + char, '指定首字', 6));
+        }
+        if (!firstChar && secondChar) {
+            this.classicPhrases.filter((item) => item.text.endsWith(secondChar)).slice(0, 8).forEach((item) => addCustom(item.text, '指定末字', 6));
+            candidateChars.forEach((char) => addCustom(char + secondChar, '指定末字', 6));
+        }
+        if (!firstChar && !secondChar && candidateChars.length >= 2) {
+            candidateChars.forEach((first, i) => candidateChars.forEach((second, j) => {
+                if (i !== j) addCustom(first + second, '候选字组合', 3);
+            }));
+        }
+
+        const partnerPool = [...this.characterCatalog]
+            .sort((a, b) => Number(neededWuXing.includes(b.element)) - Number(neededWuXing.includes(a.element)) || a.char.localeCompare(b.char))
+            .map((item) => item.char);
+        if (firstChar && !secondChar) {
+            partnerPool.forEach((char) => addCustom(firstChar + char, '指定首字', 5));
+        } else if (!firstChar && secondChar) {
+            partnerPool.forEach((char) => addCustom(char + secondChar, '指定末字', 5));
+        } else if (!firstChar && !secondChar && candidateChars.length > 0) {
+            candidateChars.forEach((candidate, candidateIndex) => {
+                partnerPool.forEach((partner, partnerIndex) => {
+                    if (candidate !== partner) {
+                        addCustom((candidateIndex + partnerIndex) % 2 === 0 ? candidate + partner : partner + candidate, '候选字搭配', 3);
+                    }
+                });
+            });
+        }
+
+        const hasConstraints = Boolean(firstChar || secondChar || candidateChars.length);
+        if (hasConstraints) return custom.slice(0, 10);
+
+        const genderPreferred = gender === '女'
+            ? new Set(['清扬', '静姝', '如云', '嘉卉', '柔嘉', '惠然', '杜若', '若华', '芳菲', '锦瑟', '疏影', '暗香', '清欢', '婵娟', '暮云', '溪亭', '兰舟', '晴柔'])
+            : new Set(['维桢', '景行', '邦彦', '翰飞', '秉文', '明哲', '修远', '正则', '广志', '弘毅', '博文', '浩然', '天行', '自强', '厚德', '云帆', '凌云', '海日', '千帆', '云涛']);
+        const candidates = this.classicPhrases
+            .filter((phrase) => Array.from(phrase.text).length === 2)
+            .map((phrase) => {
+                const details = Array.from(phrase.text).map((char) => this.getCharacterInfo(char));
+                if (details.some((item) => !item)) return null;
+                const match = details.filter((item) => neededWuXing.includes(item.element)).length;
+                const wuGe = this.calculateWuGe(surname, phrase.text);
+                const sanCai = this.calculateSanCai(wuGe);
+                const score = this.calculateNameScore(wuGe, sanCai) + match * 5 + (genderPreferred.has(phrase.text) ? 6 : 0);
+                return { phrase, score };
+            })
+            .filter(Boolean)
+            .sort((a, b) => b.score - a.score || a.phrase.text.localeCompare(b.phrase.text));
+
+        this._generationCounter += 1;
+        const offset = candidates.length ? (((this._generationCounter - 1) * 7) + (gender === '女' ? 3 : 0)) % candidates.length : 0;
+        const rotated = candidates.slice(offset).concat(candidates.slice(0, offset));
+        const system = rotated
+            .slice(0, 20)
+            .filter((candidate) => !custom.some((item) => item.firstName === candidate.phrase.text))
+            .map((candidate) => this.createSourcedSuggestion(surname, candidate.phrase.text, candidate.score, '系统推荐', false, neededWuXing));
+
+        return custom.concat(system).slice(0, 10);
+    }
+
     // 判断字的五行属性
     isCharWuXing(char, wuXing) {
         return this.charWuXing[wuXing] && this.charWuXing[wuXing].includes(char);
@@ -643,18 +805,7 @@ class NameCalculator {
 
     // 获取单个字的五行属性
     getCharWuXing(char) {
-        // 按固定顺序遍历五行，确保结果一致
-        const wuxingOrder = ['木', '火', '土', '金', '水'];
-        for (const wuXing of wuxingOrder) {
-            const chars = this.charWuXing[wuXing];
-            if (chars && chars.includes(char)) {
-                return wuXing;
-            }
-        }
-        // 如果找不到，根据字的笔画数推算五行
-        const strokes = this.getCharStrokes(char);
-        const wuXingByStrokes = ['木', '火', '土', '金', '水'];
-        return wuXingByStrokes[strokes % 5];
+        return this.characterInfo.get(char)?.element || null;
     }
 
     // 计算姓名总分
@@ -697,6 +848,13 @@ class NameCalculator {
         const neededWuXing = this.analyzeBaziWuXing(baziResult);
         const nameWuXing = this.getNameWuXing(firstName);
         const wuXingMatch = this.calculateWuXingMatch(neededWuXing, nameWuXing);
+        const characterDetails = Array.from(firstName).map((char) => this.getCharacterInfo(char) || {
+            char,
+            element: null,
+            strokes: this.getCharStrokes(char),
+            meaning: '未纳入姓名学整理字库，请人工复核'
+        });
+        const unclassifiedChars = characterDetails.filter((item) => !item.element).map((item) => item.char);
         
         return {
             fullName,
@@ -708,6 +866,9 @@ class NameCalculator {
             neededWuXing,
             nameWuXing,
             wuXingMatch,
+            characterDetails,
+            unclassifiedChars,
+            source: this.getPhraseSource(firstName),
             analysis: this.generateNameAnalysis(wuGe, sanCai, score, wuXingMatch)
         };
     }
@@ -772,26 +933,17 @@ class NameCalculator {
 
     // 生成姓名分析报告
     generateNameAnalysis(wuGe, sanCai, score, wuXingMatch) {
-        let analysis = `姓名综合评分：${score}分\n\n`;
-        
+        let analysis = `本地规则证据（机械计算分不单独展示）\n\n`;
+
         analysis += `五格数理：\n`;
         analysis += `天格：${wuGe.tianGe} 人格：${wuGe.renGe} 地格：${wuGe.diGe}\n`;
         analysis += `外格：${wuGe.waiGe} 总格：${wuGe.zongGe}\n\n`;
-        
+
         analysis += `三才配置：${sanCai.tianWuXing}${sanCai.renWuXing}${sanCai.diWuXing} (${sanCai.jiXiong})\n\n`;
-        
+
         analysis += `五行匹配度：${wuXingMatch}分\n\n`;
-        
-        if (score >= 90) {
-            analysis += `评价：优秀的姓名，各方面都很协调。`;
-        } else if (score >= 80) {
-            analysis += `评价：良好的姓名，大部分方面都不错。`;
-        } else if (score >= 70) {
-            analysis += `评价：一般的姓名，有改进空间。`;
-        } else {
-            analysis += `评价：建议考虑改名或调整。`;
-        }
-        
+        analysis += `本地规则观察：以上结果用于提供五格、三才与五行等可解释证据；最终评价与综合评分以大模型完成字义文化、音形美感、命理匹配及社会使用分析后的结果为准。`;
+
         return analysis;
     }
 
@@ -871,6 +1023,11 @@ class NameCalculator {
             prompt += `   五格数理：天格${wuGe.tianGe} 人格${wuGe.renGe} 地格${wuGe.diGe} 外格${wuGe.waiGe} 总格${wuGe.zongGe}\n`;
             prompt += `   三才配置：${sanCai.tianWuXing}${sanCai.renWuXing}${sanCai.diWuXing} (${sanCai.jiXiong})\n`;
             prompt += `   五行匹配：${wuXingMatch.join('、')}\n`;
+            if (suggestion.source) {
+                prompt += `   已核验出处：${suggestion.source.work}${suggestion.source.section ? ` · ${suggestion.source.section}` : ''}\n`;
+                prompt += `   原文：${suggestion.source.quote}\n`;
+                prompt += `   要求：以此原文为准，不得另造出处或改写成伪引文。\n`;
+            }
 
             // 添加字义分析要求
             if (firstName && firstName.length >= 1) {

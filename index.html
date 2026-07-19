@@ -4,12 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>赛博论命 - Cyber Fortune</title>
-    <link rel="stylesheet" href="css/style.css?v=20250119">
+    <link rel="stylesheet" href="css/style.css?v=20260718b">
+    <link rel="stylesheet" href="js/vendor/react-iztro-chart.css?v=20260719pdf1">
     <link rel="stylesheet" href="css/animations.css?v=20250119">
     <link rel="stylesheet" href="css/print.css" media="print">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
+    <noscript>
+        <div class="noscript-notice" role="alert">
+            本工具需要启用 JavaScript 才能完成八字计算与紫微斗数排盘，请启用后刷新页面。
+        </div>
+    </noscript>
     <!-- 背景粒子效果 -->
     <div id="particles-js"></div>
     
@@ -20,7 +26,10 @@
                 <span class="logo-text">CYBER</span>
                 <span class="logo-sub">FORTUNE</span>
             </div>
-            <div class="nav-menu">
+            <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-menu" aria-label="展开功能导航">
+                <span></span><span></span><span></span>
+            </button>
+            <div class="nav-menu" id="nav-menu">
                 <a href="javascript:void(0)" class="nav-item active" data-section="home">主页</a>
                 <a href="javascript:void(0)" class="nav-item" data-section="zhiming">赛博知命</a>
                 <a href="javascript:void(0)" class="nav-item" data-section="qiming">赛博起名</a>
@@ -28,94 +37,134 @@
                 <a href="javascript:void(0)" class="nav-item" data-section="hehun">赛博合婚</a>
             </div>
             <div class="nav-config">
-                <button class="config-toggle" id="config-toggle">
-                    <span>⚙️</span>
-                    <span class="config-text">AI配置</span>
+                <button class="config-toggle" id="config-toggle" type="button"
+                        aria-label="AI 配置" aria-haspopup="dialog" aria-controls="global-config-panel">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"></path>
+                        <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.42 1.42-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.02 1.56V20h-2v-.48A1.7 1.7 0 0 0 12.4 18a1.7 1.7 0 0 0-1.88.34l-.06.06-1.42-1.42.06-.06A1.7 1.7 0 0 0 9.44 15a1.7 1.7 0 0 0-1.56-1.02H7.4v-2h.48A1.7 1.7 0 0 0 9.44 11a1.7 1.7 0 0 0-.34-1.88l-.06-.06 1.42-1.42.06.06A1.7 1.7 0 0 0 12.4 8a1.7 1.7 0 0 0 1.02-1.56V6h2v.44A1.7 1.7 0 0 0 16.44 8a1.7 1.7 0 0 0 1.88-.34l.06-.06 1.42 1.42-.06.06A1.7 1.7 0 0 0 19.4 11a1.7 1.7 0 0 0 1.56 1.02h.44v2h-.44A1.7 1.7 0 0 0 19.4 15Z"></path>
+                    </svg>
+                    <span class="config-text">AI 配置</span>
                 </button>
             </div>
         </div>
     </nav>
 
     <!-- 全局AI配置面板 -->
-    <div class="global-config-panel" id="global-config-panel" style="display: none;">
+    <div class="global-config-panel" id="global-config-panel" role="dialog" aria-modal="true"
+         aria-labelledby="config-title" aria-describedby="config-description" style="display: none;">
         <div class="config-overlay" id="config-overlay"></div>
         <div class="config-content">
             <div class="config-header">
-                <h3>🤖 全局AI配置</h3>
-                <p>配置一次，所有模块共用</p>
-                <button class="config-close" id="config-close">✕</button>
+                <div>
+                    <h3 id="config-title">全局 AI 配置</h3>
+                    <p id="config-description">个人 API 可选；未配置时使用站点内置 AI</p>
+                </div>
+                <button class="config-close" id="config-close" type="button" aria-label="关闭配置">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="m6 6 12 12M18 6 6 18"></path>
+                    </svg>
+                </button>
             </div>
 
-            <div class="config-form">
-                <div class="config-row">
-                    <div class="config-item full-width">
-                        <label for="provider-select">API提供商:</label>
-                        <div class="provider-selection">
-                            <select id="provider-select">
-                                <option value="deepseek">DeepSeek</option>
-                                <option value="openai">OpenAI</option>
-                                <option value="anthropic">Anthropic (Claude)</option>
-                                <option value="alibaba">阿里云 (通义千问)</option>
-                                <option value="zhipu">智谱AI (GLM)</option>
-                                <option value="custom">自定义API</option>
-                            </select>
-                            <div class="provider-info">
-                                <span id="provider-display">DeepSeek</span>
+            <div class="config-shell">
+                <aside class="provider-panel" aria-labelledby="provider-heading">
+                    <h4 id="provider-heading">服务商</h4>
+                    <div class="provider-options" id="provider-options" role="radiogroup" aria-label="选择 API 服务商">
+                        <button class="provider-option is-selected" type="button" data-provider="deepseek" aria-pressed="true">
+                            <span class="provider-mark">DS</span><span>DeepSeek</span>
+                        </button>
+                        <button class="provider-option" type="button" data-provider="openai" aria-pressed="false">
+                            <span class="provider-mark">OA</span><span>OpenAI</span>
+                        </button>
+                        <button class="provider-option" type="button" data-provider="zhipu" aria-pressed="false">
+                            <span class="provider-mark">ZP</span><span>智谱 AI</span>
+                        </button>
+                        <button class="provider-option" type="button" data-provider="custom" aria-pressed="false">
+                            <span class="provider-mark">+</span><span>OpenAI 兼容</span>
+                        </button>
+                    </div>
+                    <select id="provider-select" class="config-visually-hidden" tabindex="-1" aria-hidden="true">
+                        <option value="deepseek">DeepSeek</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="zhipu">智谱 AI</option>
+                        <option value="custom">OpenAI 兼容</option>
+                    </select>
+                    <span id="provider-display" class="config-visually-hidden">DeepSeek</span>
+                </aside>
+
+                <form class="config-workspace" id="global-config-form" novalidate>
+                    <div class="config-fields">
+                        <div class="config-field">
+                            <label for="global-api-url">API 地址</label>
+                            <div class="config-control">
+                                <input type="url" id="global-api-url" autocomplete="url"
+                                       placeholder="https://api.deepseek.com" value="https://api.deepseek.com">
+                                <button type="button" id="reset-api-url" class="config-inline-action">恢复默认</button>
+                            </div>
+                            <small class="input-hint">可填写基础地址或完整 OpenAI 兼容端点。Cloudflare 上的自定义域名须加入 ALLOWED_API_HOSTS。</small>
+                        </div>
+
+                        <div class="config-field">
+                            <label for="global-api-key">个人 API 密钥（可选）</label>
+                            <div class="config-control">
+                                <input type="password" id="global-api-key" autocomplete="off" placeholder="留空则使用站点内置 AI">
+                                <button type="button" id="toggle-api-key" class="config-icon-action" aria-label="显示密钥" title="显示密钥">
+                                    <svg class="icon-eye" viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path>
+                                        <circle cx="12" cy="12" r="2.5"></circle>
+                                    </svg>
+                                </button>
                             </div>
                         </div>
+
+                        <div class="config-field">
+                            <label for="global-model">个人 API 模型（可选）</label>
+                            <div class="config-control">
+                                <input type="text" id="global-model" list="global-model-options"
+                                       autocomplete="off" placeholder="输入模型 ID，或先加载模型列表">
+                                <datalist id="global-model-options"></datalist>
+                                <button type="button" id="load-models-btn" class="config-inline-action config-inline-primary" disabled>
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M20 6v5h-5M4 18v-5h5"></path>
+                                        <path d="M18.4 9A7 7 0 0 0 6 6.6L4 9m16 6-2 2.4A7 7 0 0 1 5.6 15"></path>
+                                    </svg>
+                                    <span class="button-label">加载模型</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="config-field">
+                            <label>连接状态</label>
+                            <div class="config-status" id="config-status" data-status="idle">
+                                <span class="status-indicator" aria-hidden="true"></span>
+                                <span class="status-text">未连接</span>
+                                <span class="status-detail">尚未进行连接测试</span>
+                            </div>
+                        </div>
+
+                        <div class="config-feedback" id="config-feedback" role="status" aria-live="polite" hidden></div>
+
+                        <p class="config-security-note" id="config-security-note">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <rect x="5" y="10" width="14" height="10" rx="2"></rect>
+                                <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
+                            </svg>
+                            未填写完整的个人 API 配置时，自动使用站点内置 AI。个人密钥仅保存在当前浏览器；内置密钥只保存在 Cloudflare 服务端。
+                        </p>
                     </div>
-                </div>
-                <div class="config-row">
-                    <div class="config-item">
-                        <label for="global-api-url">API地址:</label>
-                        <div class="api-url-input">
-                            <input type="text" id="global-api-url" placeholder="https://api.deepseek.com/v1/chat/completions"
-                                   value="https://api.deepseek.com/v1/chat/completions">
-                            <button type="button" id="load-models-btn" class="load-models-button" disabled>
-                                🔄 加载模型
+
+                    <div class="config-actions">
+                        <button class="config-button config-button-quiet" id="reset-global-config" type="button">恢复默认</button>
+                        <div class="config-actions-primary">
+                            <button class="config-button config-button-secondary" id="test-global-config" type="button">
+                                <span class="button-label">测试连接</span>
+                            </button>
+                            <button class="config-button config-button-primary" id="save-global-config" type="submit">
+                                <span class="button-label">保存配置</span>
                             </button>
                         </div>
-                        <small class="input-hint">支持自定义API地址，输入有效的API地址和密钥后可加载可用模型</small>
                     </div>
-                    <div class="config-item">
-                        <label for="global-api-key">API密钥:</label>
-                        <input type="password" id="global-api-key" placeholder="请输入您的API密钥">
-                        <small class="input-hint">您的API密钥将被安全保存在本地浏览器中</small>
-                    </div>
-                </div>
-                <div class="config-row">
-                    <div class="config-item">
-                        <label for="global-model">模型:</label>
-                        <select id="global-model">
-                            <option value="deepseek-r1" selected>DeepSeek-R1 (推荐)</option>
-                            <option value="deepseek-chat">DeepSeek-Chat</option>
-                            <option value="gpt-4">GPT-4</option>
-                            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                            <option value="claude-3-sonnet">Claude-3 Sonnet</option>
-                            <option value="claude-3-haiku">Claude-3 Haiku</option>
-                            <option value="qwen-max">通义千问-Max</option>
-                            <option value="glm-4">智谱GLM-4</option>
-                        </select>
-                    </div>
-                    <div class="config-item">
-                        <label>状态:</label>
-                        <div class="config-status" id="config-status">
-                            <span class="status-indicator">⚪</span>
-                            <span class="status-text">未配置</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="config-actions">
-                <button class="cyber-button" id="save-global-config">
-                    <span>💾 保存配置</span>
-                    <div class="button-glow"></div>
-                </button>
-                <button class="cyber-button secondary" id="test-global-config">
-                    <span>🔍 测试连接</span>
-                    <div class="button-glow"></div>
-                </button>
+                </form>
             </div>
         </div>
     </div>
@@ -167,7 +216,18 @@
             </div>
             <div class="content-container">
                 <div class="input-panel">
-                    <form id="zhiming-form" class="cyber-form">
+                    <form id="zhiming-form" class="cyber-form" novalidate>
+                        <div class="form-assistant-bar">
+                            <div>
+                                <strong>出生资料</strong>
+                                <span>带 <b aria-hidden="true">*</b> 的项目为必填</span>
+                            </div>
+                            <div class="form-assistant-actions">
+                                <button class="form-utility-button" type="button" data-reuse-profile>↻ 填入最近资料</button>
+                                <button class="form-clear-button" type="button" data-clear-profile>清除</button>
+                            </div>
+                        </div>
+                        <div class="form-feedback" id="zhiming-form-feedback" role="status" aria-live="polite" hidden></div>
                         <div class="form-group">
                             <label>性别</label>
                             <div class="radio-group">
@@ -290,7 +350,18 @@
             </div>
             <div class="content-container">
                 <div class="input-panel">
-                    <form id="qiming-form" class="cyber-form">
+                    <form id="qiming-form" class="cyber-form" novalidate>
+                        <div class="form-assistant-bar">
+                            <div>
+                                <strong>起名资料</strong>
+                                <span>可复用最近一次出生信息，姓氏仍需单独填写</span>
+                            </div>
+                            <div class="form-assistant-actions">
+                                <button class="form-utility-button" type="button" data-reuse-profile>↻ 填入最近资料</button>
+                                <button class="form-clear-button" type="button" data-clear-profile>清除</button>
+                            </div>
+                        </div>
+                        <div class="form-feedback" id="qiming-form-feedback" role="status" aria-live="polite" hidden></div>
                         <div class="form-group">
                             <label>姓氏</label>
                             <input type="text" name="surname" placeholder="请输入姓氏" required>
@@ -434,7 +505,18 @@
             </div>
             <div class="content-container">
                 <div class="input-panel">
-                    <form id="ceming-form" class="cyber-form">
+                    <form id="ceming-form" class="cyber-form" novalidate>
+                        <div class="form-assistant-bar">
+                            <div>
+                                <strong>测名资料</strong>
+                                <span>可复用最近一次出生信息，姓名不会被保存</span>
+                            </div>
+                            <div class="form-assistant-actions">
+                                <button class="form-utility-button" type="button" data-reuse-profile>↻ 填入最近资料</button>
+                                <button class="form-clear-button" type="button" data-clear-profile>清除</button>
+                            </div>
+                        </div>
+                        <div class="form-feedback" id="ceming-form-feedback" role="status" aria-live="polite" hidden></div>
                         <div class="form-group">
                             <label>姓名</label>
                             <input type="text" name="fullName" placeholder="请输入完整姓名" required>
@@ -557,7 +639,19 @@
             </div>
             <div class="content-container">
                 <div class="input-panel">
-                    <form id="hehun-form" class="cyber-form">
+                    <form id="hehun-form" class="cyber-form" novalidate>
+                        <div class="form-assistant-bar form-assistant-bar-wide">
+                            <div>
+                                <strong>双方资料</strong>
+                                <span>把最近出生资料填给指定一方，姓名不会被保存</span>
+                            </div>
+                            <div class="form-assistant-actions">
+                                <button class="form-utility-button" type="button" data-reuse-profile data-profile-target="male">↻ 填给男方</button>
+                                <button class="form-utility-button" type="button" data-reuse-profile data-profile-target="female">↻ 填给女方</button>
+                                <button class="form-clear-button" type="button" data-clear-profile>清除</button>
+                            </div>
+                        </div>
+                        <div class="form-feedback" id="hehun-form-feedback" role="status" aria-live="polite" hidden></div>
                         <div class="form-section">
                             <h3 class="form-section-title">男方信息</h3>
                             <div class="form-group">
@@ -773,7 +867,7 @@
     <!-- 脚本文件 -->
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/lunisolar@2.5.1/dist/lunisolar.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/iztro/dist/iztro.min.js"></script>
+    <script src="js/vendor/iztro.min.js?v=20260718"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
     <!-- PDF和图片生成库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
@@ -845,14 +939,20 @@
     </script>
     <script src="js/particles-config.js?v=20250119b"></script>
     <script src="js/bazi-calculator.js?v=20250119b"></script>
-    <script src="js/ziwei-calculator.js?v=20250119b"></script>
-    <script src="js/name-calculator.js?v=20250119b"></script>
+    <script src="js/ziwei-calculator.js?v=20260718"></script>
+    <script src="js/ziwei-interpreter.js?v=20260719"></script>
+    <script src="js/data/kangxi-strokes.js?v=20260718"></script>
+    <script src="js/data/name-character-data.js?v=20260718"></script>
+    <script src="js/name-calculator.js?v=20260718a"></script>
     <script src="js/marriage-calculator.js?v=20250119b"></script>
     <!-- 配置系统 -->
-    <script src="js/config/api-client.js?v=20250119b"></script>
-    <script src="js/config/config-manager.js?v=20250119b"></script>
-    <script src="js/config/ai-config.js?v=20250119b"></script>
+    <script src="js/config/api-client.js?v=20260719builtin1"></script>
+    <script src="js/config/config-manager.js?v=20260718"></script>
+    <script src="js/config/ai-config.js?v=20260718model1"></script>
     <script src="js/config/index.js?v=20250119b"></script>
-    <script src="js/main.js?v=20250119b"></script>
+    <script src="js/ui/form-assistant.js?v=20260718a"></script>
+    <script src="js/vendor/purify.min.js?v=20260719xss1"></script>
+    <script src="js/vendor/react-iztro-chart.js?v=20260719pdf1"></script>
+    <script src="js/main.js?v=20260719xss1"></script>
 </body>
 </html>

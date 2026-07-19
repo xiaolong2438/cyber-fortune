@@ -1,406 +1,424 @@
-// AI配置模块 - 处理AI特定的配置功能
+// AI configuration panel controller.
 class AiConfig {
     constructor() {
         this.configManager = new ConfigManager();
         this.apiClient = new ApiClient();
         this.currentConfig = this.configManager.getConfig();
-        this.models = [];
-        this.isLoading = false;
-        // 使用配置管理器中的提供商配置
         this.providers = this.configManager.providers;
+        this.isLoading = false;
+        this.isInitialized = false;
+        this.lastFocusedElement = null;
     }
 
-    // 初始化AI配置
     init() {
+        if (this.isInitialized) return;
+
         this.bindEvents();
         this.loadConfigToUI();
-        this.updateProviderSelection();
+        this.isInitialized = true;
     }
 
-    // 绑定事件
     bindEvents() {
         const configToggle = document.getElementById('config-toggle');
         const configClose = document.getElementById('config-close');
         const configOverlay = document.getElementById('config-overlay');
-        const saveConfigBtn = document.getElementById('save-global-config');
+        const configForm = document.getElementById('global-config-form');
         const testConfigBtn = document.getElementById('test-global-config');
+        const loadModelsBtn = document.getElementById('load-models-btn');
         const apiUrlInput = document.getElementById('global-api-url');
         const apiKeyInput = document.getElementById('global-api-key');
-        const modelSelect = document.getElementById('global-model');
-        const loadModelsBtn = document.getElementById('load-models-btn');
+        const toggleApiKeyBtn = document.getElementById('toggle-api-key');
+        const resetApiUrlBtn = document.getElementById('reset-api-url');
+        const resetConfigBtn = document.getElementById('reset-global-config');
 
-        // 打开/关闭配置面板
-        if (configToggle) {
-            configToggle.addEventListener('click', () => this.showConfigPanel());
-        }
-        
-        if (configClose) {
-            configClose.addEventListener('click', () => this.hideConfigPanel());
-        }
-        
-        if (configOverlay) {
-            configOverlay.addEventListener('click', () => this.hideConfigPanel());
-        }
+        configToggle?.addEventListener('click', () => this.showConfigPanel());
+        configClose?.addEventListener('click', () => this.hideConfigPanel());
+        configOverlay?.addEventListener('click', () => this.hideConfigPanel());
 
-        // 保存配置
-        if (saveConfigBtn) {
-            saveConfigBtn.addEventListener('click', () => this.saveConfig());
-        }
+        configForm?.addEventListener('submit', (event) => {
+            event.preventDefault();
+            this.saveConfig();
+        });
 
-        // 测试配置
-        if (testConfigBtn) {
-            testConfigBtn.addEventListener('click', () => this.testConfig());
-        }
+        testConfigBtn?.addEventListener('click', () => this.testConfig());
+        loadModelsBtn?.addEventListener('click', () => this.loadModelsFromAPI());
+        toggleApiKeyBtn?.addEventListener('click', () => this.toggleApiKeyVisibility());
+        resetApiUrlBtn?.addEventListener('click', () => this.resetApiUrl());
+        resetConfigBtn?.addEventListener('click', () => this.resetConfig());
 
-        // 加载模型列表
-        if (loadModelsBtn) {
-            loadModelsBtn.addEventListener('click', () => this.loadModelsFromAPI());
-        }
+        document.querySelectorAll('.provider-option').forEach((button) => {
+            button.addEventListener('click', () => this.selectProvider(button.dataset.provider));
+        });
 
-        // API地址变化时自动检测提供商
-        if (apiUrlInput) {
-            apiUrlInput.addEventListener('change', () => {
-                this.detectProvider();
-                this.updateProviderSelection();
-            });
-        }
+        apiUrlInput?.addEventListener('input', () => this.updateLoadModelsButton());
+        apiUrlInput?.addEventListener('change', () => this.detectProvider());
+        apiKeyInput?.addEventListener('input', () => this.updateLoadModelsButton());
 
-        // API密钥变化时启用加载模型按钮
-        if (apiKeyInput) {
-            apiKeyInput.addEventListener('input', () => {
-                this.updateLoadModelsButton();
-            });
-        }
+        document.addEventListener('keydown', (event) => {
+            const panel = document.getElementById('global-config-panel');
+            if (event.key === 'Escape' && panel?.style.display === 'flex') {
+                this.hideConfigPanel();
+            }
+        });
     }
 
-    // 显示配置面板
     showConfigPanel() {
         const panel = document.getElementById('global-config-panel');
-        if (panel) {
-            panel.style.display = 'block';
-            this.loadConfigToUI();
-        }
+        if (!panel) return;
+
+        this.lastFocusedElement = document.activeElement;
+        this.loadConfigToUI();
+        panel.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        document.getElementById('global-api-url')?.focus();
     }
 
-    // 隐藏配置面板
     hideConfigPanel() {
         const panel = document.getElementById('global-config-panel');
-        if (panel) {
-            panel.style.display = 'none';
+        if (!panel) return;
+
+        panel.style.display = 'none';
+        document.body.style.overflow = '';
+
+        if (this.lastFocusedElement && typeof this.lastFocusedElement.focus === 'function') {
+            this.lastFocusedElement.focus();
         }
     }
 
-    // 加载配置到UI
     loadConfigToUI() {
         const config = this.configManager.getConfig();
+        const provider = this.providers[config.provider] ? config.provider : 'custom';
+        const baseUrl = config.baseUrl || config.apiUrl || this.providers[provider]?.baseUrl || '';
         const apiUrlInput = document.getElementById('global-api-url');
         const apiKeyInput = document.getElementById('global-api-key');
-        const modelSelect = document.getElementById('global-model');
-        const providerSelect = document.getElementById('provider-select');
 
-        if (apiUrlInput) {
-            // 使用baseUrl或apiUrl，优先使用baseUrl（基础URL）
-            apiUrlInput.value = config.baseUrl || config.apiUrl || '';
-        }
-        
+        this.currentConfig = config;
+
+        if (apiUrlInput) apiUrlInput.value = baseUrl;
         if (apiKeyInput) {
             apiKeyInput.value = config.apiKey || '';
+            apiKeyInput.type = 'password';
         }
 
-        if (providerSelect) {
-            providerSelect.value = config.provider || 'deepseek';
-        }
-
-        if (modelSelect) {
-            // 先加载推荐模型
-            this.loadRecommendedModels(modelSelect);
-            
-            // 如果有配置的API地址和密钥，尝试加载模型列表
-            if ((config.baseUrl || config.apiUrl) && config.apiKey) {
-                this.loadModelsFromAPI(false);
-            }
-        }
-
+        this.updateApiKeyToggle(false);
+        this.selectProvider(provider, {
+            preserveUrl: true,
+            selectedModel: config.model,
+            clearFeedback: false
+        });
+        this.clearMessage();
         this.updateStatus();
         this.updateLoadModelsButton();
     }
 
-    // 加载推荐模型
-    loadRecommendedModels(modelSelect) {
-        if (!modelSelect) return;
-        
-        const recommendedModels = this.configManager.getRecommendedModels();
-        modelSelect.innerHTML = '';
-        
-        recommendedModels.forEach(model => {
-            const option = document.createElement('option');
-            option.value = model.id;
-            option.textContent = model.name;
-            option.dataset.provider = model.provider;
-            modelSelect.appendChild(option);
+    selectProvider(provider, options = {}) {
+        const selectedProvider = this.providers[provider] ? provider : 'custom';
+        const {
+            preserveUrl = false,
+            selectedModel,
+            clearFeedback = true
+        } = options;
+        const providerSelect = document.getElementById('provider-select');
+        const providerDisplay = document.getElementById('provider-display');
+        const apiUrlInput = document.getElementById('global-api-url');
+
+        document.querySelectorAll('.provider-option').forEach((button) => {
+            const isSelected = button.dataset.provider === selectedProvider;
+            button.classList.toggle('is-selected', isSelected);
+            button.setAttribute('aria-pressed', String(isSelected));
         });
 
-        // 设置当前选中的模型
-        const currentModel = this.currentConfig.model;
-        if (currentModel) {
-            modelSelect.value = currentModel;
+        if (providerSelect) providerSelect.value = selectedProvider;
+        if (providerDisplay) {
+            providerDisplay.textContent = this.providers[selectedProvider]?.name || '自定义';
+        }
+
+        if (apiUrlInput && !preserveUrl) {
+            apiUrlInput.value = this.providers[selectedProvider]?.baseUrl || '';
+        }
+
+        this.renderModelOptions([], selectedModel);
+        this.updateLoadModelsButton();
+        this.updateStatus('idle');
+        if (clearFeedback) this.clearMessage();
+    }
+
+    renderModelOptions(models = [], selectedModel = undefined) {
+        const modelInput = document.getElementById('global-model');
+        const datalist = document.getElementById('global-model-options');
+        if (!modelInput || !datalist) return;
+
+        datalist.innerHTML = '';
+        (Array.isArray(models) ? models : []).forEach((model) => {
+            const option = document.createElement('option');
+            option.value = model.id;
+            option.label = model.name || model.id;
+            datalist.appendChild(option);
+        });
+
+        if (selectedModel !== undefined && selectedModel !== null) {
+            modelInput.value = selectedModel;
         }
     }
 
-    // 从API加载模型列表
     async loadModelsFromAPI(showLoading = true) {
         if (this.isLoading) return;
 
-        const baseUrl = document.getElementById('global-api-url')?.value;
-        const apiKey = document.getElementById('global-api-key')?.value;
-        const providerSelect = document.getElementById('provider-select');
-        const modelSelect = document.getElementById('global-model');
+        const baseUrl = document.getElementById('global-api-url')?.value.trim();
+        const apiKey = document.getElementById('global-api-key')?.value.trim();
+        const provider = this.getSelectedProvider(baseUrl);
+        const modelInput = document.getElementById('global-model');
         const loadModelsBtn = document.getElementById('load-models-btn');
 
         if (!baseUrl || !apiKey) {
-            this.showMessage('请先填写API地址和密钥', 'error');
+            this.showMessage('请先填写 API 地址和密钥。', 'error');
             return;
         }
 
-        if (!modelSelect) return;
-
-        const provider = providerSelect?.value || this.configManager.detectProviderFromUrl(baseUrl) || 'custom';
+        if (!modelInput) return;
 
         try {
             this.isLoading = true;
-            
+            this.updateLoadModelsButton();
+
             if (showLoading) {
-                this.showMessage('正在加载模型列表...', 'info');
-                if (loadModelsBtn) {
-                    loadModelsBtn.disabled = true;
-                    loadModelsBtn.textContent = '加载中...';
-                }
+                this.showMessage('正在从服务商加载模型列表...', 'info');
+                this.setButtonLabel(loadModelsBtn, '加载中...');
             }
 
-            // 使用配置管理器获取模型列表URL
             const modelsUrl = this.configManager.getModelsUrl(provider, baseUrl);
-            
-            // 使用API客户端加载模型
-            const models = await this.apiClient.getAvailableModels(modelsUrl, apiKey);
-            
-            if (models && models.length > 0) {
-                // 清空现有选项
-                modelSelect.innerHTML = '';
-                
-                // 添加加载的模型
-                models.forEach(model => {
-                    const option = document.createElement('option');
-                    option.value = model.id;
-                    option.textContent = model.name;
-                    option.dataset.provider = model.provider;
-                    modelSelect.appendChild(option);
-                });
+            const models = await this.apiClient.getAvailableModels(modelsUrl, apiKey, provider);
 
-                // 尝试保持之前选择的模型
-                const currentModel = this.currentConfig.model;
-                if (currentModel && models.find(m => m.id === currentModel)) {
-                    modelSelect.value = currentModel;
-                }
-
-                this.showMessage(`成功加载 ${models.length} 个模型`, 'success');
-            } else {
-                this.showMessage('未找到可用模型，使用推荐模型列表', 'warning');
-                this.loadRecommendedModels(modelSelect);
+            if (!models || models.length === 0) {
+                this.renderModelOptions([]);
+                this.showMessage('接口未返回模型列表，请手动输入模型 ID。', 'warning');
+                return;
             }
+
+            const previousModel = modelInput.value || this.currentConfig.model || '';
+            this.renderModelOptions(models, previousModel);
+
+            this.showMessage(`已加载 ${models.length} 个模型。`, 'success');
         } catch (error) {
             console.error('加载模型失败:', error);
-            this.showMessage(`加载模型失败: ${error.message}`, 'error');
-            // 加载推荐模型作为备选
-            this.loadRecommendedModels(modelSelect);
+            this.renderModelOptions([]);
+            const localHint = this.apiClient.isLocalDevelopment
+                ? ' 本地静态预览可能被服务商 CORS 拦截；请用 Cloudflare Pages 预览做完整联调。'
+                : '';
+            this.showMessage(`加载模型失败：${error.message}；仍可手动输入模型 ID。${localHint}`, 'error');
         } finally {
             this.isLoading = false;
-            if (showLoading && loadModelsBtn) {
-                loadModelsBtn.disabled = false;
-                loadModelsBtn.textContent = '🔄 加载模型';
-            }
+            this.setButtonLabel(loadModelsBtn, '加载模型');
+            this.updateLoadModelsButton();
         }
     }
 
-    // 检测API提供商
     detectProvider() {
-        const apiUrl = document.getElementById('global-api-url')?.value;
-        if (!apiUrl) return;
-
-        const provider = this.configManager.detectProviderFromUrl(apiUrl);
-        const providerDisplay = document.getElementById('provider-display');
-        
-        if (providerDisplay) {
-            providerDisplay.textContent = this.providers[provider]?.name || '未知';
-        }
-    }
-
-    // 更新提供商选择
-    updateProviderSelection() {
-        const apiUrl = document.getElementById('global-api-url')?.value;
-        if (!apiUrl) return;
-
-        const provider = this.configManager.detectProviderFromUrl(apiUrl);
-        const providerSelect = document.getElementById('provider-select');
-        
-        if (providerSelect) {
-            providerSelect.value = provider;
-            this.updateProviderUrl(provider);
-        }
-    }
-
-    // 更新提供商URL
-    updateProviderUrl(provider) {
-        const apiUrlInput = document.getElementById('global-api-url');
-        if (!apiUrlInput || !apiUrlInput.value || provider === 'custom') return;
-
-        const defaultUrl = this.providers[provider]?.defaultUrl;
-        if (defaultUrl && apiUrlInput.value !== defaultUrl) {
-            // 只有当用户没有自定义URL时才更新
-            const currentConfig = this.configManager.getConfig();
-            if (currentConfig.apiUrl === this.providers[currentConfig.provider]?.defaultUrl) {
-                apiUrlInput.value = defaultUrl;
-            }
-        }
-    }
-
-    // 更新加载模型按钮状态
-    updateLoadModelsButton() {
-        const apiKey = document.getElementById('global-api-key')?.value;
-        const loadModelsBtn = document.getElementById('load-models-btn');
-        
-        if (loadModelsBtn) {
-            loadModelsBtn.disabled = !apiKey || this.isLoading;
-        }
-    }
-
-    // 保存配置
-    async saveConfig() {
-        const baseUrl = document.getElementById('global-api-url')?.value;
-        const apiKey = document.getElementById('global-api-key')?.value;
-        const model = document.getElementById('global-model')?.value;
-        const providerSelect = document.getElementById('provider-select');
-
-        if (!baseUrl || !apiKey || !model) {
-            this.showMessage('请填写完整的配置信息', 'error');
+        const apiUrl = document.getElementById('global-api-url')?.value.trim();
+        if (!apiUrl) {
+            this.selectProvider('custom', { preserveUrl: true });
             return;
         }
 
-        const provider = providerSelect?.value || this.configManager.detectProviderFromUrl(baseUrl) || 'custom';
-        
-        // 获取完整的API URL
-        const apiUrl = this.configManager.getApiUrl(provider, baseUrl);
-        
+        const provider = this.configManager.detectProviderFromUrl(apiUrl) || 'custom';
+        this.selectProvider(provider, { preserveUrl: true });
+    }
+
+    getSelectedProvider(baseUrl = '') {
+        const selected = document.getElementById('provider-select')?.value;
+        if (selected && this.providers[selected]) return selected;
+        return this.configManager.detectProviderFromUrl(baseUrl) || 'custom';
+    }
+
+    resetApiUrl() {
+        const provider = this.getSelectedProvider();
+        const apiUrlInput = document.getElementById('global-api-url');
+        if (!apiUrlInput) return;
+
+        apiUrlInput.value = this.providers[provider]?.baseUrl || '';
+        apiUrlInput.focus();
+        this.updateLoadModelsButton();
+        this.clearMessage();
+    }
+
+    toggleApiKeyVisibility() {
+        const apiKeyInput = document.getElementById('global-api-key');
+        if (!apiKeyInput) return;
+
+        const isVisible = apiKeyInput.type === 'text';
+        apiKeyInput.type = isVisible ? 'password' : 'text';
+        this.updateApiKeyToggle(!isVisible);
+        apiKeyInput.focus();
+    }
+
+    updateApiKeyToggle(isVisible) {
+        const toggleButton = document.getElementById('toggle-api-key');
+        if (!toggleButton) return;
+
+        const label = isVisible ? '隐藏密钥' : '显示密钥';
+        toggleButton.setAttribute?.('aria-label', label);
+        toggleButton.title = label;
+        toggleButton.setAttribute?.('aria-pressed', String(isVisible));
+    }
+
+    resetConfig() {
+        localStorage.removeItem(this.configManager.configKey);
+        this.configManager.clearModelsCache();
+        this.currentConfig = this.configManager.getConfig();
+        this.loadConfigToUI();
+        this.showMessage('已恢复默认设置，API 密钥已清除。', 'success');
+    }
+
+    updateLoadModelsButton() {
+        const baseUrl = document.getElementById('global-api-url')?.value.trim();
+        const apiKey = document.getElementById('global-api-key')?.value.trim();
+        const loadModelsBtn = document.getElementById('load-models-btn');
+
+        if (loadModelsBtn) {
+            loadModelsBtn.disabled = !baseUrl || !apiKey || this.isLoading;
+        }
+    }
+
+    async saveConfig() {
+        const baseUrlInput = document.getElementById('global-api-url')?.value.trim();
+        const apiKey = document.getElementById('global-api-key')?.value.trim();
+        const model = document.getElementById('global-model')?.value;
+        const provider = this.getSelectedProvider(baseUrlInput);
+
+        if (!baseUrlInput || !apiKey || !model) {
+            this.showMessage('请填写 API 地址、密钥并选择模型。', 'error');
+            return;
+        }
+
+        const baseUrl = this.configManager.normalizeApiBaseUrl(baseUrlInput);
         const config = {
-            baseUrl: baseUrl, // 保存基础URL
-            apiUrl: apiUrl,   // 保存完整的API URL
+            baseUrl,
+            apiUrl: this.configManager.getApiUrl(provider, baseUrl),
             apiKey,
             model,
-            provider
+            provider,
+            savedAt: new Date().toISOString()
         };
 
         try {
-            const success = this.configManager.saveConfig(config);
-            if (success) {
-                this.currentConfig = config;
-                this.showMessage('配置保存成功', 'success');
-                this.updateStatus();
-            } else {
-                this.showMessage('配置保存失败', 'error');
+            if (!this.configManager.saveConfig(config)) {
+                throw new Error('浏览器存储不可用');
             }
+
+            this.currentConfig = config;
+            const apiUrlInput = document.getElementById('global-api-url');
+            if (apiUrlInput) apiUrlInput.value = baseUrl;
+            this.updateStatus('configured');
+            this.showMessage('配置已保存，所有 AI 功能将共用此设置。', 'success');
         } catch (error) {
             console.error('保存配置失败:', error);
-            this.showMessage(`保存配置失败: ${error.message}`, 'error');
+            this.showMessage(`保存配置失败：${error.message}`, 'error');
         }
     }
 
-    // 测试配置
     async testConfig() {
-        const baseUrl = document.getElementById('global-api-url')?.value;
-        const apiKey = document.getElementById('global-api-key')?.value;
+        const baseUrl = document.getElementById('global-api-url')?.value.trim();
+        const apiKey = document.getElementById('global-api-key')?.value.trim();
         const model = document.getElementById('global-model')?.value;
-        const providerSelect = document.getElementById('provider-select');
-        const testBtn = document.getElementById('test-global-config');
+        const provider = this.getSelectedProvider(baseUrl);
+        const testButton = document.getElementById('test-global-config');
 
         if (!baseUrl || !apiKey || !model) {
-            this.showMessage('请填写完整的配置信息', 'error');
+            this.showMessage('请填写 API 地址、密钥并选择模型后再测试。', 'error');
             return;
         }
 
-        const provider = providerSelect?.value || this.configManager.detectProviderFromUrl(baseUrl) || 'custom';
-
         try {
-            if (testBtn) {
-                testBtn.disabled = true;
-                testBtn.textContent = '测试中...';
+            testButton.disabled = true;
+            this.setButtonLabel(testButton, '测试中...');
+            this.updateStatus('testing');
+            this.showMessage('正在验证地址、密钥和模型接口...', 'info');
+
+            const apiUrl = this.configManager.getApiUrl(provider, baseUrl);
+            const response = await this.apiClient.requestAIResponse(apiUrl, apiKey, {
+                model,
+                messages: [{ role: 'user', content: '请仅回复 OK' }],
+                stream: false,
+                max_tokens: 3,
+                temperature: 0
+            });
+            if (!response.ok) {
+                let detail = `HTTP ${response.status}`;
+                try {
+                    const errorData = await response.json();
+                    detail = errorData.error?.message || errorData.message || detail;
+                } catch (error) {
+                    // Keep the HTTP status when the provider returns non-JSON.
+                }
+                throw new Error(detail);
             }
 
-            this.showMessage('正在测试连接...', 'info');
-            
-            // 使用配置管理器的验证功能
-            const result = await this.configManager.validateConfig(baseUrl, apiKey, provider);
-            
-            if (result.valid) {
-                this.showMessage('连接测试成功', 'success');
-                this.updateStatus('connected');
-            } else {
-                this.showMessage(`连接测试失败: ${result.error}`, 'error');
-                this.updateStatus('error');
-            }
+            this.updateStatus('connected');
+            this.showMessage('连接成功，可以保存并开始使用。', 'success');
         } catch (error) {
             console.error('测试配置失败:', error);
-            this.showMessage(`测试配置失败: ${error.message}`, 'error');
             this.updateStatus('error');
+            this.showMessage(`连接失败：${error.message}`, 'error');
         } finally {
-            if (testBtn) {
-                testBtn.disabled = false;
-                testBtn.textContent = '🔍 测试连接';
-            }
+            if (testButton) testButton.disabled = false;
+            this.setButtonLabel(testButton, '测试连接');
         }
     }
 
-    // 更新状态显示
     updateStatus(status = null) {
-        const statusIndicator = document.getElementById('config-status')?.querySelector('.status-indicator');
-        const statusText = document.getElementById('config-status')?.querySelector('.status-text');
-        
-        if (!statusIndicator || !statusText) return;
+        const statusElement = document.getElementById('config-status');
+        const statusText = statusElement?.querySelector('.status-text');
+        const statusDetail = statusElement?.querySelector('.status-detail');
+        if (!statusElement || !statusText || !statusDetail) return;
 
-        if (status === 'connected') {
-            statusIndicator.textContent = '🟢';
-            statusText.textContent = '已连接';
-        } else if (status === 'error') {
-            statusIndicator.textContent = '🔴';
-            statusText.textContent = '连接失败';
-        } else if ((this.currentConfig.baseUrl || this.currentConfig.apiUrl) && this.currentConfig.apiKey) {
-            statusIndicator.textContent = '🟡';
-            statusText.textContent = '已配置';
-        } else {
-            statusIndicator.textContent = '⚪';
-            statusText.textContent = '未配置';
-        }
+        const configured = (this.currentConfig.baseUrl || this.currentConfig.apiUrl) &&
+            this.currentConfig.apiKey && this.currentConfig.model;
+        const nextStatus = status || (configured ? 'configured' : 'idle');
+        const copy = {
+            idle: ['未连接', '尚未进行连接测试'],
+            configured: ['已配置', '建议测试连接后使用'],
+            testing: ['测试中', '正在请求模型接口'],
+            connected: ['连接成功', '地址与密钥均可用'],
+            error: ['连接失败', '请检查提示信息后重试']
+        };
+
+        const [text, detail] = copy[nextStatus] || copy.idle;
+        statusElement.dataset.status = nextStatus;
+        statusText.textContent = text;
+        statusDetail.textContent = detail;
     }
 
-    // 显示消息
+    setButtonLabel(button, label) {
+        const labelElement = button?.querySelector('.button-label');
+        if (labelElement) labelElement.textContent = label;
+    }
+
     showMessage(message, type = 'info') {
-        // 可以在这里实现一个更好的消息提示系统
-        console.log(`[${type.toUpperCase()}] ${message}`);
-        
-        // 简单的实现：使用alert
-        if (type === 'error') {
-            alert(`错误: ${message}`);
-        }
+        const feedback = document.getElementById('config-feedback');
+        if (!feedback) return;
+
+        feedback.dataset.type = type;
+        feedback.textContent = message;
+        feedback.hidden = false;
     }
 
-    // 获取当前配置
+    clearMessage() {
+        const feedback = document.getElementById('config-feedback');
+        if (!feedback) return;
+
+        feedback.hidden = true;
+        feedback.textContent = '';
+        delete feedback.dataset.type;
+    }
+
     getCurrentConfig() {
         return this.currentConfig;
     }
 
-    // 检查配置是否有效
     isConfigValid() {
-        return !!((this.currentConfig.baseUrl || this.currentConfig.apiUrl) && this.currentConfig.apiKey && this.currentConfig.model);
+        return !!((this.currentConfig.baseUrl || this.currentConfig.apiUrl) &&
+            this.currentConfig.apiKey && this.currentConfig.model);
     }
 }
 
-// 导出模块
 window.AiConfig = AiConfig;

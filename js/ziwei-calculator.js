@@ -3,11 +3,11 @@
 class ZiweiCalculator {
     constructor() {
         // 检查iztro库是否可用
-        this.iztroAvailable = typeof iztro !== 'undefined';
+        this.iztroAvailable = typeof iztro !== 'undefined' && typeof iztro.astro?.bySolar === 'function';
         if (this.iztroAvailable) {
             console.log('✅ iztro库已加载，将使用专业紫薇斗数计算');
         } else {
-            console.error('❌ iztro库未加载，将使用备用计算方法');
+            console.error('iztro库未加载，紫微斗数计算将明确标记为不可用');
         }
         
         // 十二宫位
@@ -22,91 +22,56 @@ class ZiweiCalculator {
 
     // 使用iztro库计算紫薇斗数
     calculate(birthData) {
-        if (this.iztroAvailable) {
-            return this.calculateWithIztro(birthData);
-        } else {
-            return this.getFallbackResult(birthData);
+        const normalized = this.normalizeBirthData(birthData);
+        if (!normalized.valid) {
+            return this.getUnavailableResult('INVALID_BIRTH_DATA', normalized.error);
         }
+        if (!this.iztroAvailable) {
+            return this.getUnavailableResult('IZTRO_UNAVAILABLE', '紫微斗数计算库未加载，请刷新页面后重试。');
+        }
+        return this.calculateWithIztro(normalized.value);
+    }
+
+    normalizeBirthData(birthData = {}) {
+        const year = Number(birthData.year);
+        const month = Number(birthData.month);
+        const day = Number(birthData.day);
+        const hour = Number(birthData.hour);
+        const minute = birthData.minute === undefined || birthData.minute === '' ? 0 : Number(birthData.minute);
+        const gender = birthData.gender === 1 || birthData.gender === 'male' ? '男' :
+            birthData.gender === 0 || birthData.gender === 'female' ? '女' : birthData.gender;
+
+        if (![year, month, day, hour, minute].every(Number.isInteger)) {
+            return { valid: false, error: '出生日期和时间必须是有效整数。' };
+        }
+        if (year < 1900 || year > 2100 || month < 1 || month > 12 || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+            return { valid: false, error: '出生日期或时间超出可计算范围。' };
+        }
+        const date = new Date(Date.UTC(year, month - 1, day));
+        if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+            return { valid: false, error: '出生日期不存在，请检查年月日。' };
+        }
+        if (!['男', '女'].includes(gender)) {
+            return { valid: false, error: '性别必须为男或女。' };
+        }
+        return { valid: true, value: { year, month, day, hour, minute, gender } };
     }
 
     // 使用iztro库进行专业计算
     calculateWithIztro(birthData) {
         try {
             const { year, month, day, hour, gender } = birthData;
-            
-            // 构建日期字符串
             const dateStr = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-            
-            // 转换性别格式 - iztro使用1表示男性,0表示女性
-            const genderNum = gender === '男' ? 1 : 0;
-            
-            // 转换时辰 - iztro需要时辰索引(0-11),而非小时数(0-23)
-            // 时辰对照: 子(23-1)=0, 丑(1-3)=1, 寅(3-5)=2, 卯(5-7)=3, 辰(7-9)=4, 巳(9-11)=5
-            //          午(11-13)=6, 未(13-15)=7, 申(15-17)=8, 酉(17-19)=9, 戌(19-21)=10, 亥(21-23)=11
-            console.log('🔍 [时辰转换调试] 原始hour值:', hour, '类型:', typeof hour);
-            const hourNum = parseInt(hour);
-            console.log('🔍 [时辰转换调试] 转换后hourNum:', hourNum);
-            
-            let timeNum;
-            if (hourNum === 23) {
-                timeNum = 0; // 子时(23:00-00:59)
-                console.log('🔍 [时辰转换调试] 特殊处理23点 -> timeNum=0');
-            } else {
-                timeNum = Math.floor((hourNum + 1) / 2); // 将小时数转换为时辰索引
-                console.log('🔍 [时辰转换调试] 计算公式: Math.floor((', hourNum, '+ 1) / 2) =', timeNum);
+            // iztro distinguishes early rat hour (00:00) from late rat hour (23:00).
+            const timeIndex = hour === 23 ? 12 : Math.floor((hour + 1) / 2);
+            const astrolabe = iztro.astro.bySolar(dateStr, timeIndex, gender, true, 'zh-CN');
+            if (!astrolabe || !Array.isArray(astrolabe.palaces) || astrolabe.palaces.length !== 12) {
+                throw new Error('iztro 返回的命盘结构不完整');
             }
-            
-            console.log('📊 [iztro调用参数]', {
-                原始birthData: {
-                    year: birthData.year,
-                    month: birthData.month,
-                    day: birthData.day,
-                    hour: birthData.hour,
-                    gender: birthData.gender
-                },
-                转换后参数: {
-                    solarDate: dateStr,
-                    time: timeNum,
-                    gender: genderNum,
-                    fixLeap: true
-                }
-            });
-            
-            // 使用iztro库计算星盘 - 使用正确的API
-            console.log('🚀 [开始调用iztro.astrolabe]');
-            const astrolabe = iztro.astrolabe({
-                solarDate: dateStr,
-                time: timeNum,
-                gender: genderNum,
-                fixLeap: true  // 修正闰月
-            });
-            
-            console.log('✅ [iztro计算成功]', {
-                命宫: astrolabe.palaces?.find(p => p.name === '命宫'),
-                计算方法: 'iztro专业算法',
-                时辰: astrolabe.time,
-                时间范围: astrolabe.timeRange
-            });
-            
-            // 解析星盘数据
-            const result = this.parseAstrolabe(astrolabe);
-            
-            console.log('紫薇斗数计算完成:', result);
-            return result;
-            
+            return this.parseAstrolabe(astrolabe);
         } catch (error) {
-            console.error('❌ [iztro计算失败]');
-            console.error('错误类型:', error.name);
-            console.error('错误信息:', error.message);
-            console.error('错误堆栈:', error.stack);
-            console.error('失败时的参数:', {
-                dateStr,
-                timeNum,
-                genderNum,
-                birthData
-            });
-            console.warn('⚠️ 降级使用简化算法');
-            return this.getFallbackResult(birthData);
+            console.error('紫微斗数计算失败:', error);
+            return this.getUnavailableResult('IZTRO_CALCULATION_FAILED', `紫微斗数计算失败：${error.message}`);
         }
     }
 
@@ -119,11 +84,14 @@ class ZiweiCalculator {
             const palaceData = {
                 name: palace.name,
                 earthlyBranch: palace.earthlyBranch,
-                heavenlyStems: palace.heavenlyStems,
+                heavenlyStem: palace.heavenlyStem,
                 majorStars: this.formatStars(palace.majorStars || []),
                 minorStars: this.formatStars(palace.minorStars || []),
                 adjectiveStars: this.formatStars(palace.adjectiveStars || []),
-                changStars: this.formatStars(palace.changStars || []),
+                majorStarDetails: this.formatStarDetails(palace.majorStars || []),
+                minorStarDetails: this.formatStarDetails(palace.minorStars || []),
+                adjectiveStarDetails: this.formatStarDetails(palace.adjectiveStars || []),
+                changsheng12: palace.changsheng12 || '',
                 decadal: palace.decadal || null,
                 ages: palace.ages || []
             };
@@ -131,6 +99,7 @@ class ZiweiCalculator {
         });
 
         return {
+            available: true,
             palaces: palaces,
             solarDate: astrolabe.solarDate,
             lunarDate: astrolabe.lunarDate,
@@ -150,49 +119,30 @@ class ZiweiCalculator {
 
     // 格式化星曜数据
     formatStars(stars) {
+        return this.formatStarDetails(stars).map((star) => star.name);
+    }
+
+    formatStarDetails(stars) {
         if (!Array.isArray(stars)) return [];
-        return stars.map(star => {
-            if (typeof star === 'string') return star;
-            if (star && star.name) return star.name;
-            return star.toString();
+        return stars.map((star) => {
+            if (typeof star === 'string') {
+                return { name: star, brightness: '', mutagen: '' };
+            }
+            return {
+                name: star?.name || String(star),
+                brightness: star?.brightness || '',
+                mutagen: star?.mutagen || ''
+            };
         });
     }
 
-    // 备用计算方法（当iztro库不可用时）
-    getFallbackResult(birthData) {
-        console.warn('⚠️ [降级警告] 使用简化紫薇斗数计算');
-        console.warn('原因: iztro库调用失败或不可用');
-        const { year, month, day, hour, gender } = birthData;
-        
-        // 简化的紫薇斗数信息
-        const palaces = this.gongWei.map((name, index) => ({
-            name: name,
-            earthlyBranch: this.diZhi[index],
-            heavenlyStems: '',
-            majorStars: [],
-            minorStars: [],
-            adjectiveStars: [],
-            changStars: [],
-            decadal: null,
-            ages: []
-        }));
-
+    getUnavailableResult(errorCode, warning) {
         return {
-            palaces: palaces,
-            solarDate: `${year}-${month}-${day}`,
-            lunarDate: '农历信息需要专业库计算',
-            chineseDate: '中文日期需要专业库计算',
-            time: `${hour}时`,
-            timeRange: `${hour}:00-${hour+1}:00`,
-            sign: gender === '男' ? '乾' : '坤',
-            zodiac: '生肖需要专业库计算',
-            earthlyBranchOfSoulPalace: this.diZhi[0],
-            earthlyBranchOfBodyPalace: this.diZhi[1],
-            soul: '命宫',
-            body: '身宫',
-            fiveElementsClass: '五行需要专业库计算',
-            calculationMethod: 'fallback',
-            warning: '使用简化计算，建议加载iztro库获得准确结果'
+            available: false,
+            errorCode,
+            warning,
+            palaces: [],
+            calculationMethod: 'unavailable'
         };
     }
 
@@ -212,6 +162,9 @@ class ZiweiCalculator {
 
     // 生成简要分析
     generateSummary(result) {
+        if (result?.available === false) {
+            return result.warning || '紫微斗数命盘暂时不可用。';
+        }
         if (!result || !result.palaces) {
             return '无法生成分析，请检查输入数据';
         }

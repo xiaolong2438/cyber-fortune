@@ -6,7 +6,7 @@
 
 ### 🔮 赛博知命
 - **八字排盘**：精确计算年月日时四柱
-- **紫薇斗数**：传统紫薇斗数星盘分析
+- **紫微斗数**：基于 `react-iztro` 的完整互动星盘，支持宫位、星曜、四化与运限切换
 - **真太阳时修正**：根据出生地进行时间修正
 - **AI命理分析**：生成详细的命理分析提示词
 - **十神分析**：深入解读十神关系
@@ -53,6 +53,8 @@
 - **HTML5**：语义化标签和现代Web标准
 - **CSS3**：Flexbox/Grid布局，动画效果
 - **JavaScript ES6+**：模块化编程，面向对象设计
+- **React Island**：仅在紫微星盘区域挂载 React，保留原有轻量静态站架构
+- **react-iztro**：提供完整、可交互的紫微斗数星盘可视化
 - **Particles.js**：粒子背景效果库
 
 ### 核心算法
@@ -71,6 +73,11 @@ Cyberpunk Fortune/
 │   └── animations.css     # 动画效果
 ├── js/
 │   ├── main.js            # 主交互逻辑
+│   ├── ui/
+│   │   └── ziwei-chart-entry.jsx # 紫微星盘 React Island 入口
+│   ├── vendor/
+│   │   ├── react-iztro-chart.js  # 已构建的本地星盘脚本
+│   │   └── react-iztro-chart.css # 已构建的本地星盘样式
 │   ├── bazi-calculator.js # 八字计算模块
 │   ├── ziwei-calculator.js# 紫薇斗数模块
 │   ├── name-calculator.js # 起名测名模块
@@ -83,11 +90,19 @@ Cyberpunk Fortune/
 
 1. **克隆项目**
    ```bash
-   git clone https://github.com/longxingdeng/cyber-fortune.git
-   cd Cyberpunk Fortune
+   git clone https://github.com/xiaolong2438/cyber-fortune.git
+   cd cyber-fortune
    ```
 
-2. **启动服务**
+2. **安装依赖并构建紫微星盘**
+   ```bash
+   npm install
+   npm run build:ziwei-chart
+   ```
+
+   构建结果会写入 `js/vendor/`。仓库已包含生产构建产物，Cloudflare Pages 可直接作为静态资源发布；修改星盘入口或升级依赖后需要重新执行构建命令。
+
+3. **启动服务**
    - 直接用浏览器打开 `index.html`
    - 或使用本地服务器（推荐）：
    ```bash
@@ -98,7 +113,52 @@ Cyberpunk Fortune/
    npx serve .
    ```
 
-3. **访问网站**
+### Cloudflare Pages 部署与自定义 API
+
+项目通过 `functions/api/proxy.js` 在同源服务端转发模型列表和聊天请求，避免浏览器 CORS 导致的 `Failed to fetch`。DeepSeek、OpenAI、智谱域名已默认允许。
+
+#### 配置站点内置 AI（推荐）
+
+访客没有填写完整的个人 API 地址、密钥和模型时，前端会自动调用 Cloudflare 服务端的内置 AI；访客填写了完整个人配置后，则优先使用个人 API。内置密钥不会发送到浏览器，也不要写入 `index.html`、JavaScript 或 Git 仓库。
+
+在 Cloudflare Pages 项目的 **Settings → Environment variables and secrets** 中设置：
+
+```text
+BUILTIN_AI_API_URL=https://api.deepseek.com/v1/chat/completions
+BUILTIN_AI_API_KEY=你的服务端密钥
+BUILTIN_AI_MODEL=你的模型ID
+BUILTIN_AI_ENABLED=true
+BUILTIN_AI_REQUIRE_ORIGIN=true
+BUILTIN_AI_ALLOWED_ORIGIN=https://你的正式域名
+```
+
+Cloudflare Pages 还必须在项目的 **Settings → Bindings → Add → KV namespace** 中创建绑定，变量名设为 `BUILTIN_AI_RATE_LIMIT_KV`。这是 Pages Functions 官方支持的绑定类型；内置 AI 找不到该绑定时会主动返回 503，不会绕过限流继续调用上游模型。具体配置可参考 [Pages Functions Bindings](https://developers.cloudflare.com/pages/functions/bindings/#kv-namespaces)。
+
+可选的额度限制：
+
+```text
+BUILTIN_AI_MAX_TOKENS=4000
+BUILTIN_AI_MAX_INPUT_CHARS=50000
+BUILTIN_AI_RATE_MAX_REQUESTS=20
+BUILTIN_AI_RATE_WINDOW_SECONDS=3600
+BUILTIN_AI_MIN_INTERVAL_SECONDS=5
+```
+
+`BUILTIN_AI_API_URL` 必须是 OpenAI Chat Completions 兼容的 HTTPS 地址，且域名必须在代理允许列表中。更换为其他服务商域名时，还需通过 `ALLOWED_API_HOSTS` 显式允许。`BUILTIN_AI_ENABLED=true` 是显式上线开关；`BUILTIN_AI_ALLOWED_ORIGIN` 应填写最终访问站点的 Origin（只含协议和域名，不带路径）。设置后重新部署；若缺少任一必填变量，页面会明确提示“站点内置 AI 尚未配置”。
+
+**启用 `BUILTIN_AI_ENABLED` 前，必须先配置 `BUILTIN_AI_RATE_LIMIT_KV` 绑定，并在 Cloudflare 为 `/api/proxy` 配置 WAF 速率限制，同时开启 Bot 防护和费用告警。** KV 限流负责应用层的基础保护，但 KV 最终一致，不能替代 Cloudflare 边缘 WAF 的按 IP 限流。
+
+生产部署只使用 `functions/api/proxy.js` 这一 Cloudflare Pages Function 入口；旧的独立 Worker 代理已移除，避免绕过 HTTPS、域名白名单和私网地址检查。
+
+使用其他 OpenAI 兼容 API 时，请在 Cloudflare Pages 项目的环境变量中添加：
+
+```text
+ALLOWED_API_HOSTS=api.example.com,another-api.example.com
+```
+
+只填写域名，不带 `https://`、端口或路径。部署后重新加载页面，再输入 API 地址、密钥并点击“加载模型”。本地静态服务器没有 Pages Function，只有服务商允许浏览器 CORS 时才能直接加载外部模型；完整联调请使用 Cloudflare Pages 本地开发环境或部署预览。
+
+4. **访问网站**
    打开浏览器访问 `http://localhost:8000`
 
 ## 🌐 部署到Cloudflare Pages
@@ -125,7 +185,7 @@ Cyberpunk Fortune/
 4. **连接GitHub仓库**
    - 选择 "GitHub"
    - 授权Cloudflare访问您的GitHub账户
-   - 选择仓库：`longxingdeng/cyber-fortune`
+   - 选择仓库：`xiaolong2438/cyber-fortune`
 
 5. **配置构建设置**
    - **项目名称**：`cyber-fortune`（或自定义名称）
@@ -139,16 +199,15 @@ Cyberpunk Fortune/
    - 等待部署完成（通常1-3分钟）
    - 获得您的网站URL：`https://your-project-name.pages.dev`
 
-### 方法二：手动上传
+### 方法二：Wrangler 手动部署
 
-1. **准备部署文件**
-   - 确保项目包含 `_headers` 和 `_redirects` 配置文件
-   - 这些文件已包含在项目中，用于优化性能和SEO
+Dashboard 拖拽上传不会编译 `functions/`，会导致 `/api/proxy` 不存在。需要从项目根目录使用 Wrangler，让静态文件和 Pages Functions 一起部署（参见 [Cloudflare Direct Upload - Functions](https://developers.cloudflare.com/pages/get-started/direct-upload/#functions)）：
 
-2. **手动部署**
-   - 在Cloudflare Pages中选择 "Upload assets"
-   - 将整个项目文件夹拖拽上传
-   - 等待部署完成
+```bash
+npm install
+npm run build:ziwei-chart
+npx wrangler pages deploy .
+```
 
 ### 部署后配置
 
@@ -156,9 +215,9 @@ Cyberpunk Fortune/
    - 在Pages项目设置中添加自定义域名
    - 配置DNS记录指向Cloudflare
 
-2. **环境变量**（如需要）
-   - 在项目设置中添加环境变量
-   - 当前项目为纯前端，暂不需要
+2. **环境变量**
+   - 若需要无配置可用的内置 AI，请按上文设置 `BUILTIN_AI_API_URL`、`BUILTIN_AI_API_KEY`、`BUILTIN_AI_MODEL`、`BUILTIN_AI_ENABLED`、Origin 限制和 `BUILTIN_AI_RATE_LIMIT_KV` 绑定
+   - 密钥必须使用 Cloudflare 的加密 Secret，不能写入前端代码
 
 3. **自动部署**
    - 每次推送到GitHub main分支会自动触发部署
