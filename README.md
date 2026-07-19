@@ -212,7 +212,7 @@ ALLOWED_API_HOSTS=api.example.com,another-api.example.com
 3. 如果 Pages 项目名不是 `cyber-fortune`，在同一页面的 **Variables** 中添加 `CLOUDFLARE_PAGES_PROJECT`，值为实际项目名。
 4. 推送 `main`，或者手动运行工作流。
 
-如果两个 Secret 尚未配置，工作流仍会完成测试和构建，但会明确跳过部署。配置后重新运行即可。Cloudflare 项目中的内置 AI 环境变量、Secret 和 `BUILTIN_AI_RATE_LIMIT_KV` 绑定仍保留在 Cloudflare，不要放进 GitHub。
+如果两个 Secret 尚未配置，工作流会在凭据检查步骤明确失败，避免出现“运行成功但实际没有部署”的假象。配置后重新运行即可。Cloudflare 项目中的内置 AI 环境变量、Secret 和 `BUILTIN_AI_RATE_LIMIT_KV` 绑定仍保留在 Cloudflare，不要放进 GitHub。
 
 > 同一个项目只保留一种自动部署方式。使用 GitHub Actions 后，建议关闭 Cloudflare Pages 原生 Git 自动构建，避免一次推送触发两次部署。
 
