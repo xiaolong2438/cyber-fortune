@@ -1,0 +1,17 @@
+.git/
+.github/
+.augment/
+.vscode/
+node_modules/
+docs/
+test/
+scripts/
+workers/
+*.md
+*.map
+package.json
+package-lock.json
+.gitignore
+.assetsignore
+debug-name-score.html
+test-*.html

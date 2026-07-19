@@ -201,7 +201,22 @@ ALLOWED_API_HOSTS=api.example.com,another-api.example.com
    - 等待部署完成（通常1-3分钟）
    - 获得您的网站URL：`https://your-project-name.pages.dev`
 
-### 方法二：Wrangler 手动部署
+### 方法二：GitHub Actions 自动部署（推荐给 Direct Upload 项目）
+
+仓库已包含 `.github/workflows/deploy-cloudflare-pages.yml`。推送到 `main` 时会自动安装依赖、运行全量测试、构建紫微星盘并通过 Wrangler 部署；也可以在 GitHub 的 **Actions → Deploy Cloudflare Pages → Run workflow** 中手动重新运行。
+
+1. 在 Cloudflare 创建 API Token，权限选择 **Account → Cloudflare Pages → Edit**。
+2. 打开 GitHub 仓库 **Settings → Secrets and variables → Actions → Secrets**，添加：
+   - `CLOUDFLARE_API_TOKEN`：Cloudflare API Token
+   - `CLOUDFLARE_ACCOUNT_ID`：Cloudflare Account ID
+3. 如果 Pages 项目名不是 `cyber-fortune`，在同一页面的 **Variables** 中添加 `CLOUDFLARE_PAGES_PROJECT`，值为实际项目名。
+4. 推送 `main`，或者手动运行工作流。
+
+如果两个 Secret 尚未配置，工作流仍会完成测试和构建，但会明确跳过部署。配置后重新运行即可。Cloudflare 项目中的内置 AI 环境变量、Secret 和 `BUILTIN_AI_RATE_LIMIT_KV` 绑定仍保留在 Cloudflare，不要放进 GitHub。
+
+> 同一个项目只保留一种自动部署方式。使用 GitHub Actions 后，建议关闭 Cloudflare Pages 原生 Git 自动构建，避免一次推送触发两次部署。
+
+### 方法三：Wrangler 手动部署
 
 Dashboard 拖拽上传不会编译 `functions/`，会导致 `/api/proxy` 不存在。需要从项目根目录使用 Wrangler，让静态文件和 Pages Functions 一起部署（参见 [Cloudflare Direct Upload - Functions](https://developers.cloudflare.com/pages/get-started/direct-upload/#functions)）：
 
