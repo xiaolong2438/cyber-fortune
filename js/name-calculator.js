@@ -692,6 +692,54 @@ class NameCalculator {
         };
     }
 
+    getNameGenderProfile(gender) {
+        if (gender === '女') {
+            return {
+                preferred: new Set(['清扬', '静姝', '如云', '嘉卉', '令仪', '柔嘉', '惠然', '杜若', '若华', '芳菲', '锦瑟', '疏影', '暗香', '清欢', '婵娟', '暮云', '溪亭', '兰舟', '晴柔', '锦书']),
+                avoid: new Set(['维桢', '邦彦', '翰飞', '秉文', '修远', '正则', '广志', '弘毅', '博文', '浩然', '天行', '自强', '厚德', '凌云', '海日', '千帆'])
+            };
+        }
+        return {
+            preferred: new Set(['维桢', '景行', '邦彦', '翰飞', '秉文', '明哲', '修远', '正则', '广志', '弘毅', '博文', '浩然', '天行', '自强', '厚德', '云帆', '凌云', '海日', '千帆', '星河']),
+            avoid: new Set(['静姝', '柔嘉', '嘉卉', '令仪', '芳菲', '锦瑟', '婵娟', '晴柔', '疏影', '暗香', '溪亭'])
+        };
+    }
+
+    getNameQualityPenalty(firstName, gender) {
+        const chars = Array.from(firstName || '');
+        const negativeChars = new Set('死亡凶恶毒害病灾祸墓葬丧哭泣愁忧苦闷孤寡贫贱奴乞鬼怪垃圾脏臭坏'.split(''));
+        if (chars.some((char) => negativeChars.has(char))) return -45;
+        const profile = this.getNameGenderProfile(gender);
+        if (profile.avoid.has(firstName)) return -28;
+        if (new Set(chars).size < chars.length) return -8;
+        return 0;
+    }
+
+    selectDiverseNameCandidates(candidates, limit = 10) {
+        const selected = [];
+        const firstCounts = new Map();
+        const lastCounts = new Map();
+        const tryAdd = (candidate, relaxed = false) => {
+            const text = candidate.phrase.text;
+            const first = text[0];
+            const last = text[1];
+            if (!relaxed && ((firstCounts.get(first) || 0) >= 2 || (lastCounts.get(last) || 0) >= 2)) return false;
+            selected.push(candidate);
+            firstCounts.set(first, (firstCounts.get(first) || 0) + 1);
+            lastCounts.set(last, (lastCounts.get(last) || 0) + 1);
+            return true;
+        };
+        candidates.forEach((candidate) => {
+            if (selected.length < limit) tryAdd(candidate);
+        });
+        if (selected.length < limit) {
+            candidates.forEach((candidate) => {
+                if (selected.length < limit && !selected.includes(candidate)) tryAdd(candidate, true);
+            });
+        }
+        return selected;
+    }
+
     createSourcedSuggestion(surname, firstName, score, customType = '系统推荐', isCustom = false, neededWuXing = []) {
         const chars = Array.from(firstName);
         const characterDetails = chars.map((char) => this.getCharacterInfo(char) || {
@@ -768,11 +816,9 @@ class NameCalculator {
         }
 
         const hasConstraints = Boolean(firstChar || secondChar || candidateChars.length);
-        if (hasConstraints) return custom.slice(0, 10);
+        if (hasConstraints) return custom.slice(0, 24);
 
-        const genderPreferred = gender === '女'
-            ? new Set(['清扬', '静姝', '如云', '嘉卉', '柔嘉', '惠然', '杜若', '若华', '芳菲', '锦瑟', '疏影', '暗香', '清欢', '婵娟', '暮云', '溪亭', '兰舟', '晴柔'])
-            : new Set(['维桢', '景行', '邦彦', '翰飞', '秉文', '明哲', '修远', '正则', '广志', '弘毅', '博文', '浩然', '天行', '自强', '厚德', '云帆', '凌云', '海日', '千帆', '云涛']);
+        const genderProfile = this.getNameGenderProfile(gender);
         const candidates = this.classicPhrases
             .filter((phrase) => Array.from(phrase.text).length === 2)
             .map((phrase) => {
@@ -781,21 +827,27 @@ class NameCalculator {
                 const match = details.filter((item) => neededWuXing.includes(item.element)).length;
                 const wuGe = this.calculateWuGe(surname, phrase.text);
                 const sanCai = this.calculateSanCai(wuGe);
-                const score = this.calculateNameScore(wuGe, sanCai) + match * 5 + (genderPreferred.has(phrase.text) ? 6 : 0);
+                const ruleScore = this.calculateNameScore(wuGe, sanCai);
+                const normalizedRuleScore = 54 + Math.round((ruleScore - 60) * 0.55);
+                const styleScore = genderProfile.preferred.has(phrase.text) ? 11 : 0;
+                const sourceScore = phrase.quote && phrase.meaning ? 5 : 0;
+                const qualityPenalty = this.getNameQualityPenalty(phrase.text, gender);
+                if (qualityPenalty <= -20) return null;
+                const score = normalizedRuleScore + match * 4 + styleScore + sourceScore + qualityPenalty;
                 return { phrase, score };
             })
             .filter(Boolean)
             .sort((a, b) => b.score - a.score || a.phrase.text.localeCompare(b.phrase.text));
 
         this._generationCounter += 1;
-        const offset = candidates.length ? (((this._generationCounter - 1) * 7) + (gender === '女' ? 3 : 0)) % candidates.length : 0;
-        const rotated = candidates.slice(offset).concat(candidates.slice(0, offset));
-        const system = rotated
-            .slice(0, 20)
+        const topPool = candidates.slice(0, Math.min(30, candidates.length));
+        const offset = topPool.length ? (((this._generationCounter - 1) * 3) + (gender === '女' ? 2 : 0)) % topPool.length : 0;
+        const rotated = topPool.slice(offset).concat(topPool.slice(0, offset));
+        const system = this.selectDiverseNameCandidates(rotated, 24)
             .filter((candidate) => !custom.some((item) => item.firstName === candidate.phrase.text))
-            .map((candidate) => this.createSourcedSuggestion(surname, candidate.phrase.text, candidate.score, '系统推荐', false, neededWuXing));
+            .map((candidate) => this.createSourcedSuggestion(surname, candidate.phrase.text, candidate.score, '系统候选池', false, neededWuXing));
 
-        return custom.concat(system).slice(0, 10);
+        return custom.concat(system).slice(0, 24);
     }
 
     // 判断字的五行属性
@@ -958,16 +1010,16 @@ class NameCalculator {
 
         prompt += `你具备深厚的古典文学功底，熟悉《诗经》、《楚辞》、《论语》、《孟子》、《唐诗三百首》、《宋词》、《元曲》等经典文献，能够准确分析汉字的本义、引申义、文化内涵和诗词出处。你善于从古典诗词中寻找美好的字词寓意，为起名提供深厚的文化底蕴。\n\n`;
 
-        prompt += `请运用你的推理能力，逐步分析每个候选姓名的各个维度。特别是在分析字义内涵时，请深入挖掘每个字的文化内涵和诗词典故，尽可能找出其在古典诗词中的具体出处和美好寓意。例如："明"字出自《诗经·大雅·烝民》"既明且哲，以保其身"，寓意聪明睿智。\n\n`;
+        prompt += `请在内部比较候选池，不要逐名输出分析过程。重点核验最终入选名字的字义、原典出处、音形体验与现实使用价值；例如引用经典时必须对应输入中已经核验的作品和原文。\n\n`;
 
         prompt += `现在需要你为一位求名者进行专业的起名分析和建议。请你运用你的专业知识，对候选姓名进行全面评估，并给出详细的分析和改进建议。\n\n`;
 
         prompt += `**重要要求**：\n`;
-        prompt += `1. 请深入分析每个候选名字的优缺点\n`;
-        prompt += `2. 基于八字命理需求，主动思考是否有更适合的字词组合\n`;
-        prompt += `3. 如果你认为有更优秀的名字推荐，请提出1-3个专家推荐名字\n`;
-        prompt += `4. 对推荐名字按照同样标准（八字匹配度、五格数理、字义内涵、音韵美学）进行完整分析\n`;
-        prompt += `5. 详细说明推荐名字相比候选名字的具体优势和改进之处\n\n`;
+        prompt += `1. 候选池已经按用户规则生成，你只能在候选池内完成综合排名，不得自行创造或追加“专家推荐名字”\n`;
+        prompt += `2. 排名顺序依次考虑：用户指定用字与位置硬约束、出处和字义可信度、音形与现实使用体验、八字五行、五格三才参考证据\n`;
+        prompt += `3. 用户指定的首字、末字和候选字要求优先级最高，不得为了提高命理评分而调换位置、替换字符或忽略字辈\n`;
+        prompt += `4. 对最终前5名按照同一标准进行完整比较，并说明各自排名理由与需要权衡的地方\n`;
+        prompt += `5. 如果候选池受硬约束后不足5个，只输出全部有效候选，不得补造名字凑数\n\n`;
 
         // 基本信息
         prompt += `求名者基本信息：\n`;
@@ -995,15 +1047,22 @@ class NameCalculator {
             prompt += `自定义用字要求：\n`;
             if (firstChar) {
                 prompt += `指定第一个字（辈分字）：${firstChar}\n`;
-                prompt += `说明：这是家族辈分字，必须固定在第一个位置\n`;
+                prompt += `硬性顺序规则：这是家族辈分字，必须固定在名字的第一个位置，禁止调换到第二位\n`;
             }
             if (secondChar) {
                 prompt += `指定第二个字（辈分字）：${secondChar}\n`;
-                prompt += `说明：这个字必须固定在第二个位置\n`;
+                prompt += `硬性顺序规则：这个字必须固定在名字的第二个位置，禁止调换到第一位\n`;
             }
             if (candidateChars.length > 0) {
                 prompt += `候选字库：${candidateChars.join('、')}\n`;
-                prompt += `说明：请优先从这些候选字中选择搭配\n`;
+                prompt += `规则：候选字库只用于填充未被固定的位置；已经固定的位置不得被候选字替换\n`;
+                prompt += `用户候选字基础证据：\n`;
+                [...new Set(candidateChars)].forEach((char) => {
+                    const info = this.getCharacterInfo(char);
+                    prompt += `- ${char}：康熙${this.getCharStrokes(char)}画，五行${info?.element || '待考'}，本地字义${info?.meaning || '待考'}\n`;
+                });
+                prompt += `报告中必须单独输出“用户候选字逐字分析”章节，以上每个候选字都必须分析，不得因其未进入最终前5而省略。\n`;
+                prompt += `每个字依次说明：本义与文化内涵、可核验的古典出处（无法确认写“出处待考”）、康熙笔画与五行、与姓氏连读和谐音、适合放在名字第几位、推荐/谨慎/不建议结论及理由。\n`;
             }
             prompt += `请特别关注自定义字的使用，分析其五行属性、字义内涵和与八字的匹配度\n\n`;
         }
@@ -1011,73 +1070,31 @@ class NameCalculator {
         return prompt;
     }
 
-    // 生成候选姓名分析部分的提示词
+    // 生成供模型内部排名使用的紧凑候选证据
     generateCandidateAnalysisPrompt(nameSuggestions) {
-        let prompt = `候选姓名分析：\n`;
-        prompt += `以下是基于传统算法生成的${nameSuggestions.length}个候选姓名，请对每个姓名进行详细分析：\n\n`;
+        let prompt = `【内部候选池：只用于比较，不得逐项输出】\n`;
+        prompt += `共${nameSuggestions.length}个合规候选。请完成内部评分后只输出最终前5名：\n`;
 
         nameSuggestions.forEach((suggestion, index) => {
-            const { fullName, wuGe, sanCai, score, wuXingMatch, firstName } = suggestion;
-            prompt += `${index + 1}. ${fullName}\n`;
-            prompt += `   传统评分：${score}分\n`;
-            prompt += `   五格数理：天格${wuGe.tianGe} 人格${wuGe.renGe} 地格${wuGe.diGe} 外格${wuGe.waiGe} 总格${wuGe.zongGe}\n`;
-            prompt += `   三才配置：${sanCai.tianWuXing}${sanCai.renWuXing}${sanCai.diWuXing} (${sanCai.jiXiong})\n`;
-            prompt += `   五行匹配：${wuXingMatch.join('、')}\n`;
+            const { fullName, wuGe, sanCai, score, wuXingMatch } = suggestion;
+            prompt += `${index + 1}. ${fullName}｜本地参考${score}｜五行${wuXingMatch.join('、') || '待考'}｜三才${sanCai.tianWuXing}${sanCai.renWuXing}${sanCai.diWuXing}(${sanCai.jiXiong})｜五格${wuGe.tianGe}/${wuGe.renGe}/${wuGe.diGe}/${wuGe.waiGe}/${wuGe.zongGe}`;
             if (suggestion.source) {
-                prompt += `   已核验出处：${suggestion.source.work}${suggestion.source.section ? ` · ${suggestion.source.section}` : ''}\n`;
-                prompt += `   原文：${suggestion.source.quote}\n`;
-                prompt += `   要求：以此原文为准，不得另造出处或改写成伪引文。\n`;
-            }
-
-            // 添加字义分析要求
-            if (firstName && firstName.length >= 1) {
-                prompt += `   请重点分析：\n`;
-                for (let i = 0; i < firstName.length; i++) {
-                    const char = firstName[i];
-                    prompt += `   - "${char}"字的含义、出处和文化内涵\n`;
-                }
+                prompt += `｜出处${suggestion.source.work}${suggestion.source.section ? `·${suggestion.source.section}` : ''}${suggestion.source.author ? `·${suggestion.source.author}` : ''}｜原文${suggestion.source.quote}`;
             }
             prompt += `\n`;
         });
-
-        return prompt;
+        return prompt + `以上原文只用于核验入选名字，禁止另造出处或伪引文。\n\n`;
     }
 
     // 生成分析要求部分的提示词
     generateAnalysisRequirementsPrompt() {
-        let prompt = `请你从以下维度对每个候选姓名进行专业分析：\n\n`;
-        prompt += `1. **八字匹配度分析**：\n`;
-        prompt += `   - 姓名五行是否能有效补充八字所需\n`;
-        prompt += `   - 与日主的生克关系是否和谐\n`;
-        prompt += `   - 对命主运势的影响\n\n`;
-
-        prompt += `2. **五格数理评估**：\n`;
-        prompt += `   - 各格数理的吉凶分析\n`;
-        prompt += `   - 数理对性格、事业、健康、感情的影响\n`;
-        prompt += `   - 三才配置的具体含义\n\n`;
-
-        prompt += `3. **字义内涵分析**：\n`;
-        prompt += `   - 每个字的本义、引申义和文化内涵\n`;
-        prompt += `   - 字的诗词出处和典故来源（如引用了哪句古诗词的哪个字）\n`;
-        prompt += `   - 字与字之间的搭配是否和谐\n`;
-        prompt += `   - 整体寓意是否积极向上\n`;
-        prompt += `   - 是否体现了深厚的文化底蕴\n\n`;
-
-        prompt += `4. **音韵美学评价**：\n`;
-        prompt += `   - 声调搭配是否优美\n`;
-        prompt += `   - 是否朗朗上口\n`;
-        prompt += `   - 避免谐音歧义\n\n`;
-
-        prompt += `5. **文化内涵考量**：\n`;
-        prompt += `   - 是否符合传统文化审美\n`;
-        prompt += `   - 时代特色和现代感\n`;
-        prompt += `   - 性别特征是否明显\n\n`;
-
-        prompt += `6. **实用性考虑**：\n`;
-        prompt += `   - 书写是否简便\n`;
-        prompt += `   - 是否容易被误读误写\n`;
-        prompt += `   - 在现代社会的适用性\n\n`;
-
+        let prompt = `【内部排名维度】\n`;
+        prompt += `按以下顺序比较候选，不要输出逐项打分表：\n`;
+        prompt += `1. 用户指定字与位置是否完全合规（硬约束，不合规则淘汰）\n`;
+        prompt += `2. 字义组合、经典出处与原文语境是否可信、积极且自然\n`;
+        prompt += `3. 与姓氏连读的声调、谐音、辨识度、书写和现代使用体验\n`;
+        prompt += `4. 性别气质、名字整体风格及与其他入选名字的差异度\n`;
+        prompt += `5. 八字五行匹配，以及五格、三才等传统规则参考证据\n\n`;
         return prompt;
     }
 
@@ -1087,42 +1104,22 @@ class NameCalculator {
         prompt += `## 八字五行分析\n`;
         prompt += `[详细分析八字五行的旺衰情况和需要补充的五行]\n\n`;
 
-        prompt += `## 候选姓名详细分析\n`;
-        prompt += `### 1. [姓名] - AI综合评分：[分数]/100\n`;
-        prompt += `**八字匹配度**：[分析内容]\n`;
-        prompt += `**五格数理**：[分析内容]\n`;
-        prompt += `**字义内涵**：\n`;
-        prompt += `- [第一个字]：字义、出处典故、文化内涵\n`;
-        prompt += `- [第二个字]：字义、出处典故、文化内涵\n`;
-        prompt += `- 整体寓意和字词搭配分析\n`;
-        prompt += `**音韵美学**：[分析内容]\n`;
-        prompt += `**综合评价**：[总体评价和建议]\n\n`;
-        prompt += `[对其他候选姓名进行同样格式的分析]\n\n`;
-
-        prompt += `## 🌟 专家推荐名字（如有更优选择）\n`;
-        prompt += `如果你认为有比候选名字更适合的选择，请提出1-3个推荐名字：\n\n`;
-        prompt += `### 推荐1. [推荐姓名] - AI综合评分：[分数]/100\n`;
-        prompt += `**推荐理由**：[为什么推荐这个名字，相比候选名字的优势]\n`;
-        prompt += `**八字匹配度**：[详细分析如何更好地匹配八字]\n`;
-        prompt += `**五格数理**：[详细分析五格配置]\n`;
-        prompt += `**字义内涵**：\n`;
-        prompt += `- [第一个字]：字义、出处典故、文化内涵\n`;
-        prompt += `- [第二个字]：字义、出处典故、文化内涵\n`;
-        prompt += `- 整体寓意和字词搭配分析\n`;
-        prompt += `**音韵美学**：[详细分析音韵效果]\n`;
-        prompt += `**综合评价**：[为什么比候选名字更优秀的具体原因]\n\n`;
-        prompt += `[如有其他推荐名字，请按同样格式继续]\n\n`;
-
-        prompt += `## 最终推荐\n`;
-        prompt += `**最推荐的姓名**：[姓名]\n`;
-        prompt += `**推荐理由**：[详细说明为什么推荐这个姓名]\n\n`;
+        prompt += `## AI综合排名前5\n`;
+        prompt += `候选池只用于比较，最终只输出综合排名最高的5个姓名，按第1名至第5名排序；不要把候选池中的10个名字逐一写成报告。\n`;
+        prompt += `### 第1名：[姓名]｜AI综合评分：[分数]/100\n`;
+        prompt += `**推荐理由**：[结合八字证据、字义出处、音形美感和现实使用体验，说明为什么排在第一]\n`;
+        prompt += `**出处与用字**：[作品、篇章、原文及两个名字用字的含义；不确定时写出处待考]\n`;
+        prompt += `**需要权衡**：[一个真实的使用注意点]\n\n`;
+        prompt += `[第2名至第5名使用相同格式，每个名字都必须有独立、具体的推荐理由]\n\n`;
 
         prompt += `## 起名建议\n`;
         prompt += `**改进方向**：[如果需要重新起名，应该注意哪些方面]\n`;
         prompt += `**用字建议**：[推荐使用哪些字，避免哪些字]\n`;
         prompt += `**其他建议**：[其他有价值的起名建议]\n\n`;
 
-        prompt += `请确保分析专业、详细、实用，既要体现传统姓名学的深度，也要结合现代起名的实际需求。`;
+        prompt += `最后追加一个 JSON 代码块，严格使用以下结构，不要在 JSON 后继续输出：\n`;
+        prompt += `{"topNames":[{"rank":1,"fullName":"姓名","score":0到100的整数,"reason":"不超过120字的推荐理由","tradeoff":"不超过80字的权衡提醒"}],"summary":"一句话总评"}\n\n`;
+        prompt += `请确保 topNames 通常恰好包含5个名字，且只能从候选池中选择；若自定义用字使有效候选不足5个，则输出全部有效候选。报告正文中的排名、分数和 JSON 必须一致。`;
 
         return prompt;
     }
@@ -1133,6 +1130,15 @@ class NameCalculator {
         fullPrompt += this.generateCandidateAnalysisPrompt(nameSuggestions);
         fullPrompt += this.generateAnalysisRequirementsPrompt();
         fullPrompt += this.generateOutputFormatPrompt();
+
+        fullPrompt += `\n\n## 输出质量控制（必须执行）\n`;
+        fullPrompt += `- 先使用输入中已经提供的五行、五格、三才、出处和原文作为证据，再给出你的判断；不得把本地传统评分直接改写成 AI 结论。\n`;
+        fullPrompt += `- 出处必须可核验：输入已给出作品、篇章和原文时只能按原文解释；无法确认时明确写“出处待考”，禁止补造诗句、作者、篇名或断章取义。\n`;
+        fullPrompt += `- 传统命理属于文化参考，不得写成确定的命运、疾病、财富或婚姻预言；使用“倾向、可能、建议结合现实观察”等审慎表达。\n`;
+        fullPrompt += `- 只对最终入选名字给出差异化推荐理由和一个需要权衡的地方；不要逐项复述未入选候选。\n`;
+        fullPrompt += `- 推荐新名字时必须先检查姓氏连读、声调、常见谐音、书写难度和现实使用场景；不得推荐生僻到无法正常登记或交流的用字。\n`;
+        fullPrompt += `- 面向普通人写作：先给结论，再解释证据，短段落、少术语、每条建议尽量可执行；不要输出思维链、内部推理过程或空泛祝福。\n`;
+        fullPrompt += `- 输出完成后自检：候选名字数量、姓名字形、出处对应关系和所有评分是否一致；JSON 代码块必须放在全文最后，除 JSON 外不得在其后继续输出。\n`;
 
         return fullPrompt;
     }

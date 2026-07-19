@@ -41,6 +41,26 @@ test('AI prompt treats local score as reference evidence, not the final score', 
     assert.match(prompt, /最终综合评分必须由你完成/);
 });
 
+test('Ceming prompt requires evidence grading and non-deterministic practical advice', () => {
+    const instance = Object.create(CyberFortune.prototype);
+    instance.nameCalculator = { analyzeBaziWuXing: () => ['水'] };
+    const prompt = instance.generateCemingAIPrompt(
+        { fullName: '王小明', gender: '男', year: 1990, month: 1, day: 1, hour: 10, minute: 0, birthProvince: '北京市', birthCity: '北京市' },
+        { wuGe: { tianGe: 5, renGe: 7, diGe: 11, waiGe: 9, zongGe: 15 }, sanCai: { tianWuXing: '土', renWuXing: '金', diWuXing: '木', jiXiong: '吉' }, score: 66 },
+        { yearPillar: '庚午', monthPillar: '己丑', dayPillar: '辛亥', hourPillar: '癸巳', yearTenGod: '比肩', monthTenGod: '正印', hourTenGod: '食神', dayTianGan: '辛' }
+    );
+    assert.match(prompt, /字义和出处采用证据分级/);
+    assert.match(prompt, /不做确定性预测/);
+    assert.match(prompt, /普通人能理解/);
+    assert.match(prompt, /命理匹配30%、字义文化30%、音形美感25%、社会使用15%/);
+    assert.match(prompt, /请按以下四段格式输出/);
+    assert.match(prompt, /## 姓名综合结论/);
+    assert.match(prompt, /## 关键证据/);
+    assert.match(prompt, /## 优势与权衡/);
+    assert.match(prompt, /## 最终建议/);
+    assert.doesNotMatch(prompt, /### 🌟 人生指导/);
+});
+
 test('AI response parser accepts a bounded structured score and preserves detailed analysis', () => {
     const instance = Object.create(CyberFortune.prototype);
     const parsed = instance.parseCemingAIResponse('```json\n{"score":88,"confidence":"中","summary":"音形义协调","dimensions":{"命理匹配":86,"字义文化":92,"音形美感":87},"analysis":"建议保留并观察实际使用感受。"}\n```');
@@ -51,6 +71,20 @@ test('AI response parser accepts a bounded structured score and preserves detail
         dimensions: { '命理匹配': 86, '字义文化': 92, '音形美感': 87 },
         analysis: '建议保留并观察实际使用感受。'
     });
+});
+
+test('Ceming parser accepts malformed single-backtick JSON and hides it from readable output', () => {
+    const instance = Object.create(CyberFortune.prototype);
+    const content = '## 姓名综合结论\n建议保留。\n\n--\n\n`json\n{"score":82,"confidence":"高","summary":"整体协调","dimensions":{"命理匹配":95,"字义文化":88,"音形美感":82,"社会使用":80},"analysis":"优势与权衡"}\n`';
+    const parsed = instance.parseCemingAIResponse(content);
+    assert.strictEqual(parsed.score, 82);
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(parsed.dimensions)), {
+        命理匹配: 95,
+        字义文化: 88,
+        音形美感: 82,
+        社会使用: 80
+    });
+    assert.strictEqual(instance.stripCemingScoringJSON(content), '## 姓名综合结论\n建议保留。');
 });
 
 test('invalid or missing AI scores never fall back to the local mechanical score', () => {
@@ -69,6 +103,8 @@ test('initial result UI waits for the AI score instead of rendering the local sc
 test('AI completion updates the score in both streaming and fallback response paths', () => {
     assert.match(source, /applyCemingAIScore\(fullResponse\)/);
     assert.match(source, /applyCemingAIScore\(content\)/);
+    assert.match(source, /formatMarkdown\(this\.stripCemingScoringJSON\(fullResponse\)\)/);
+    assert.match(source, /formatMarkdown\(this\.stripCemingScoringJSON\(content\)\)/);
 });
 
 test('missing model and API failures leave the AI final score unavailable', () => {

@@ -50,6 +50,15 @@ test('marriage prompt treats mechanical matching as evidence and requires an ind
     assert.match(prompt, /"score":0到100的整数/);
 });
 
+test('marriage prompt prioritizes real communication and avoids deterministic claims', () => {
+    const instance = Object.create(CyberFortune.prototype);
+    instance.getZodiacAnimal = (year) => year === 1990 ? '马' : '猴';
+    const prompt = instance.generateMarriageAIPrompt(marriageData, marriageResult);
+    assert.match(prompt, /本地生肖、五行、十神和年龄规则只是观察证据/);
+    assert.match(prompt, /不使用“注定、必然、天作之合、绝对不合”/);
+    assert.match(prompt, /每项风险都要配一个具体可执行的修复动作/);
+});
+
 test('marriage AI parser accepts bounded structured scores and preserves dimensions', () => {
     const instance = Object.create(CyberFortune.prototype);
     const parsed = instance.parseMarriageAIResponse('```json\n{"score":84,"confidence":"中","summary":"互补明显","dimensions":{"沟通":82,"价值观":86},"analysis":"需保持沟通"}\n```');

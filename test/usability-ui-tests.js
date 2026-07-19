@@ -42,12 +42,17 @@ function testMarkupContract() {
 }
 
 function testNamingControls() {
-    ['name-element-filter', 'name-sort', 'favorite-names-only', 'name-shortlist',
-        'name-shortlist-count', 'regenerate-names-btn'].forEach((id) => {
-        assert.ok(mainJs.includes(`id="${id}"`), `missing naming control ${id}`);
+    ['ai-naming-top5', 'ai-naming-top5-empty', 'ai-naming-top5-grid',
+        'ai-naming-processing', 'ai-naming-processing-message'].forEach((id) => {
+        assert.ok(mainJs.includes(`id="${id}"`), `missing AI naming state ${id}`);
     });
-    assert.match(mainJs, /cyberFortune_nameFavorites/);
-    assert.match(mainJs, /bindNamingExplorer/);
+    const displayStart = mainJs.indexOf('displayQimingResult(');
+    const displayEnd = mainJs.indexOf('getAvailableNameElements(', displayStart);
+    const displayMarkup = mainJs.slice(displayStart, displayEnd);
+    assert.doesNotMatch(displayMarkup, /id="(?:name-element-filter|name-sort|favorite-names-only|names-grid)"/,
+        'local ten-name explorer should not be rendered');
+    assert.match(mainJs, /parseAINamingTop5Response/);
+    assert.match(mainJs, /applyAINamingTop5/);
     assert.match(mainJs, /clearTimeout\(this\.namingAnalysisTimer\)/);
     assert.match(mainJs, /this\.namingAnalysisAbortController\?\.abort\(\)/);
     assert.match(mainJs, /generationId !== this\.namingAnalysisGeneration/);
@@ -55,8 +60,8 @@ function testNamingControls() {
     assert.match(mainJs, /navToggle\.focus\(\)/);
     assert.match(mainJs, /candidateChars\.map\(\(char\) => this\.escapeHTML\(char\)\)\.join/,
         'candidate character display must escape hostile markup');
-    assert.match(css, /\.name-explorer-toolbar/);
-    assert.match(css, /\.name-favorite-button/);
+    assert.match(css, /\.ai-naming-top5/);
+    assert.match(css, /\.ai-name-reason/);
     assert.match(css, /\.nav-toggle/);
     assert.match(mainJs, /populateDays\(\)[\s\S]*while \(select\.children\.length > 1\)/,
         'dynamic day options should be idempotent');

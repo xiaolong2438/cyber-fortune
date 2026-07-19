@@ -1539,6 +1539,7 @@ class CyberFortune {
         this.namingAnalysisAbortController?.abort();
         this.namingAnalysisAbortController = null;
         this.fullAINamingResponse = '';
+        this.aiNamingTop5Result = null;
 
         const resultHTML = `
             <div class="result-header">
@@ -1591,45 +1592,18 @@ class CyberFortune {
                 </div>
             </div>
 
-            <!-- 传统算法推荐 -->
-            <div class="name-suggestions">
-                <h4>智能起名推荐</h4>
-                ${this.generateCustomConfigDisplay(birthData.customConfig)}
-                <p class="name-data-note">笔画按康熙繁体字形口径；五行为姓名学整理分类，并非《康熙字典》原始字段，流派差异请结合家族习惯复核。</p>
-                <div class="name-explorer-toolbar" aria-label="起名结果筛选工具">
-                    <label>五行
-                        <select id="name-element-filter">
-                            <option value="">全部</option>
-                            ${this.getAvailableNameElements(nameSuggestions).map((element) => `<option value="${element}">${element}</option>`).join('')}
-                        </select>
-                    </label>
-                    <label>排序
-                        <select id="name-sort">
-                            <option value="default">综合推荐</option>
-                            <option value="score-desc">评分从高到低</option>
-                            <option value="score-asc">评分从低到高</option>
-                        </select>
-                    </label>
-                    <button class="name-filter-toggle" id="favorite-names-only" type="button" aria-pressed="false">只看收藏</button>
-                    <button class="form-utility-button" id="regenerate-names-btn" type="button">换一批名字</button>
-                    <span class="name-result-count" id="name-result-count" aria-live="polite"></span>
-                </div>
-                <aside class="name-shortlist" id="name-shortlist" aria-label="名字收藏夹">
-                    <div class="name-shortlist-heading">
-                        <strong>我的备选</strong>
-                        <span id="name-shortlist-count">0 个</span>
-                    </div>
-                    <div class="name-shortlist-items"></div>
-                </aside>
-                <div class="names-grid" id="names-grid">${this.renderNameSuggestionCards(nameSuggestions)}</div>
-            </div>
-
             <!-- AI分析区域 -->
             <div class="ai-naming-analysis">
+                ${this.generateCustomConfigDisplay(birthData.customConfig)}
                 <div class="ai-naming-header">
-                    <h4>AI智能起名分析</h4>
-                    <p>基于八字命理、五格数理、字义内涵、音韵美学等多维度的专业分析</p>
+                    <h4>AI综合起名推荐</h4>
+                    <p>系统会先检索已核验的经典文学语料，形成高质量候选池，再只展示综合排名最高的 5 个名字及其推荐理由。</p>
                     <p class="model-selection-note">AI 分析将使用全局配置中当前填写的模型；模型名称由服务商接口或你手动输入决定。</p>
+                </div>
+
+                <div class="ai-naming-top5" id="ai-naming-top5" aria-live="polite">
+                    <div class="ai-naming-top5-empty" id="ai-naming-top5-empty">正在检索经典文学语料并准备 AI 排名，完成后将展示前 5 及推荐理由。</div>
+                    <div class="names-grid ai-naming-top5-grid" id="ai-naming-top5-grid"></div>
                 </div>
 
                 <!-- AI分析自动开始，无需手动按钮 -->
@@ -1661,11 +1635,11 @@ class CyberFortune {
             <!-- PDF报告下载 -->
             <div class="result-actions">
                 <div class="download-options">
-                    <button class="cyber-button" id="download-naming-pdf-btn">
+                    <button class="cyber-button" id="download-naming-pdf-btn" disabled aria-disabled="true">
                         <span>📄 生成PDF报告</span>
                         <div class="button-glow"></div>
                     </button>
-                    <button class="cyber-button secondary" id="download-naming-text-btn">
+                    <button class="cyber-button secondary" id="download-naming-text-btn" disabled aria-disabled="true">
                         <span>📝 下载文本报告</span>
                         <div class="button-glow"></div>
                     </button>
@@ -1683,9 +1657,6 @@ class CyberFortune {
 
         // 绑定PDF下载事件
         this.bindNamingDownloadEvents(birthData, baziResult, nameSuggestions);
-
-        // 绑定筛选、排序、收藏与换一批交互
-        this.bindNamingExplorer(nameSuggestions);
 
         // 显示结果面板
         resultPanel.style.display = 'block';
@@ -1771,6 +1742,132 @@ class CyberFortune {
                 </article>
             `;
         }).join('');
+    }
+
+    parseAINamingTop5Response(content, candidatePool = []) {
+        if (typeof content !== 'string' || !content.trim()) return null;
+        const candidateMap = new Map(candidatePool.map((item) => [String(item.fullName || '').trim(), item]));
+        const fencedBlocks = [...content.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi)]
+            .map((match) => match[1].trim())
+            .filter(Boolean)
+            .reverse();
+        const cleanText = (value, limit) => typeof value === 'string' ? value.trim().slice(0, limit) : '';
+
+        for (const candidate of [...fencedBlocks, content.trim()]) {
+            let parsed;
+            try {
+                parsed = JSON.parse(candidate);
+            } catch (error) {
+                continue;
+            }
+            if (!parsed || !Array.isArray(parsed.topNames)) continue;
+
+            const seen = new Set();
+            const topNames = parsed.topNames
+                .map((item) => {
+                    if (!item || typeof item !== 'object') return null;
+                    const fullName = cleanText(item.fullName || item.name, 20);
+                    const source = candidateMap.get(fullName);
+                    if (!source || seen.has(fullName)) return null;
+                    const score = Number(item.score);
+                    if (!Number.isFinite(score) || score < 0 || score > 100) return null;
+                    seen.add(fullName);
+                    return {
+                        ...source,
+                        rank: seen.size,
+                        aiScore: Math.round(score),
+                        reason: cleanText(item.reason, 400) || 'AI 已纳入多维证据完成综合排序。',
+                        tradeoff: cleanText(item.tradeoff, 240)
+                    };
+                })
+                .filter(Boolean)
+                .slice(0, 5);
+
+            const expectedCount = Math.min(5, candidateMap.size);
+            if (!expectedCount || topNames.length !== expectedCount) continue;
+            return { topNames, summary: cleanText(parsed.summary, 300) };
+        }
+        return null;
+    }
+
+    stripAINamingRankingJSON(content) {
+        return String(content || '').replace(/```(?:json)?\s*([\s\S]*?)```/gi, (block, body) => {
+            return /"topNames"\s*:/.test(body) ? '' : block;
+        }).trim();
+    }
+
+    renderAINamingTop5Cards(topNames) {
+        return topNames.map((item, index) => {
+            const source = item.source || {};
+            const elements = (item.wuXingMatch || []).filter(Boolean);
+            const sourceTitle = `${source.work || '待考'}${source.section ? ` · ${source.section}` : ''}${source.author ? ` · ${source.author}` : ''}`;
+            const characterSources = Array.from(item.firstName || '').map((char) => `
+                <li><strong>${this.escapeHTML(char)}</strong>：取自 ${this.escapeHTML(sourceTitle)}，见“${this.escapeHTML(source.quote || '暂无已核验引文')}”</li>
+            `).join('');
+            return `
+                <article class="name-card ai-top5-card">
+                    <div class="name-card-topline">
+                        <div class="name-rank">${index + 1}</div>
+                        <span class="ai-rank-label">AI 第 ${index + 1} 名</span>
+                    </div>
+                    <div class="name-card-identity">
+                        <div class="name-text">${this.escapeHTML(item.fullName)}</div>
+                        <div class="name-score"><strong>${this.escapeHTML(item.aiScore)}</strong><span>分</span></div>
+                    </div>
+                    <div class="ai-name-reason"><strong>推荐理由</strong><p>${this.escapeHTML(item.reason)}</p></div>
+                    ${item.tradeoff ? `<div class="ai-name-tradeoff"><strong>需要权衡</strong><p>${this.escapeHTML(item.tradeoff)}</p></div>` : ''}
+                    <div class="name-details">
+                        <div class="name-meta-row"><span>五行：${this.escapeHTML(elements.join('、') || '待考')}</span><span>三才：${this.escapeHTML(item.sanCai?.jiXiong || '待考')}</span></div>
+                        <div class="name-source"><strong>出处：</strong>${this.escapeHTML(sourceTitle)}</div>
+                        <blockquote class="name-quote">“${this.escapeHTML(source.quote || '暂无已核验引文')}”</blockquote>
+                        <div class="name-character-sources"><strong>逐字取字依据：</strong><ul>${characterSources}</ul></div>
+                    </div>
+                </article>
+            `;
+        }).join('');
+    }
+
+    applyAINamingTop5(content, candidatePool = []) {
+        const parsed = this.parseAINamingTop5Response(content, candidatePool);
+        const empty = document.getElementById('ai-naming-top5-empty');
+        const grid = document.getElementById('ai-naming-top5-grid');
+        const downloadButtons = ['download-naming-pdf-btn', 'download-naming-text-btn']
+            .map((id) => document.getElementById(id))
+            .filter(Boolean);
+        this.aiNamingTop5Result = parsed;
+        if (!parsed) {
+            if (empty) empty.textContent = 'AI 已完成分析，但未返回可校验的前 5 排名；详细分析仍保留在下方。';
+            if (grid) grid.innerHTML = '';
+            downloadButtons.forEach((button) => {
+                button.disabled = true;
+                button.setAttribute('aria-disabled', 'true');
+            });
+            return null;
+        }
+        if (empty) {
+            empty.textContent = parsed.summary || 'AI 已完成多维比较，以下为综合排名前 5。';
+            empty.classList.add('is-complete');
+        }
+        if (grid) grid.innerHTML = this.renderAINamingTop5Cards(parsed.topNames);
+        downloadButtons.forEach((button) => {
+            button.disabled = false;
+            button.removeAttribute('aria-disabled');
+        });
+        return parsed;
+    }
+
+    getAINamingTop5ForReport() {
+        return this.aiNamingTop5Result?.topNames || [];
+    }
+
+    getNamingCharacterSourceLines(suggestion) {
+        const source = suggestion?.source || {};
+        const sourceTitle = `${source.work || '待考'}${source.section ? ` · ${source.section}` : ''}${source.author ? ` · ${source.author}` : ''}`;
+        return Array.from(suggestion?.firstName || '').map((char) => ({
+            char,
+            sourceTitle,
+            quote: source.quote || '暂无已核验引文'
+        }));
     }
 
     bindNamingExplorer(nameSuggestions) {
@@ -2033,13 +2130,13 @@ class CyberFortune {
 
         console.log('开始显示处理状态...');
         // 显示处理状态
-        this.showAINamingProcessing();
+        this.showAINamingProcessing(nameSuggestions?.length || 0, this.nameCalculator?.classicPhrases?.length || 0);
         this.showAIDebugInfo('显示处理状态...');
 
         try {
             console.log('开始调用AI API...');
             // 调用AI API
-            await this.callAINamingAPI(aiPrompt, apiKey, modelName, apiUrl, generationId, controller?.signal);
+            await this.callAINamingAPI(aiPrompt, apiKey, modelName, apiUrl, generationId, controller?.signal, nameSuggestions);
             console.log('AI API调用完成');
 
         } catch (error) {
@@ -2072,7 +2169,7 @@ class CyberFortune {
     }
 
     // 调用AI起名API
-    async callAINamingAPI(prompt, apiKey, modelName, apiUrl, generationId = this.namingAnalysisGeneration, signal = undefined) {
+    async callAINamingAPI(prompt, apiKey, modelName, apiUrl, generationId = this.namingAnalysisGeneration, signal = undefined, nameSuggestions = []) {
         if (generationId !== this.namingAnalysisGeneration) return;
         const processingSteps = document.getElementById('ai-naming-processing-steps');
         const processingMessage = document.getElementById('ai-naming-processing-message');
@@ -2093,7 +2190,7 @@ class CyberFortune {
                 messages: [
                     {
                         role: "system",
-                        content: "你是精通中国传统姓名学和现代起名理论的专家，擅长结合八字命理、五格数理、三才配置、字义内涵、音韵美学等多个维度进行综合起名分析。具备深厚的古典文学功底，能够准确分析汉字的文化内涵和诗词出处。"
+                        content: "你是精通传统姓名学与现代语言文化的分析助手。请把八字、五格、三才和五行当作可解释证据，结合字义、音形、出处核验和现实使用体验独立判断；不编造典故，不输出宿命化结论，不展示思维链，并严格遵守用户提示中的报告结构和末尾 JSON 要求。"
                     },
                     {
                         role: "user",
@@ -2198,6 +2295,8 @@ class CyberFortune {
             if (fullResponse.trim()) {
                 copyBtn.style.display = 'block';
                 this.fullAINamingResponse = fullResponse;
+                this.applyAINamingTop5(fullResponse, nameSuggestions);
+                aiOutput.innerHTML = this.renderAIMarkdown(this.stripAINamingRankingJSON(fullResponse));
 
                 // 强制移除滚动条
                 this.removeAINamingOutputScrollbar();
@@ -2224,13 +2323,17 @@ class CyberFortune {
     }
 
     // 显示AI起名处理状态
-    showAINamingProcessing() {
+    showAINamingProcessing(candidateCount = 0, corpusCount = 0) {
         const processingDiv = document.getElementById('ai-naming-processing');
         const resultSection = document.getElementById('ai-naming-result-section');
+        const processingMessage = document.getElementById('ai-naming-processing-message');
+        const processingSteps = document.getElementById('ai-naming-processing-steps');
 
         if (processingDiv) {
             processingDiv.style.display = 'block';
         }
+        if (processingMessage) processingMessage.textContent = '正在检索典籍出处并进行 AI 综合排名，请耐心等待...';
+        if (processingSteps) processingSteps.innerHTML = `① 已检索 ${corpusCount || '全部'} 条已核验经典语料<br>② 已形成 ${candidateCount || '若干'} 个合规候选，正在核验字义、出处、音形与五行<br>③ AI 正在深度比较，即将生成前 5 排名和推荐理由`;
         if (resultSection) {
             resultSection.style.display = 'none';
         }
@@ -2256,11 +2359,13 @@ class CyberFortune {
         console.log('显示AI配置提示');
         const processingDiv = document.getElementById('ai-naming-processing');
         const resultSection = document.getElementById('ai-naming-result-section');
+        const rankingStatus = document.getElementById('ai-naming-top5-empty');
 
         // 隐藏处理状态
         if (processingDiv) {
             processingDiv.style.display = 'none';
         }
+        if (rankingStatus) rankingStatus.textContent = '需要先配置可用的 AI，才能生成综合排名前 5。';
 
         // 显示配置提示在结果区域
         if (resultSection) {
@@ -2295,6 +2400,8 @@ class CyberFortune {
     showAINamingError(message) {
         console.log('显示AI起名错误:', message);
         const errorMessage = document.getElementById('ai-naming-error-message');
+        const rankingStatus = document.getElementById('ai-naming-top5-empty');
+        if (rankingStatus) rankingStatus.textContent = `AI 排名未完成：${message}`;
         if (errorMessage) {
             errorMessage.textContent = `❌ ${message}`;
             errorMessage.style.display = 'block';
@@ -2604,55 +2711,101 @@ class CyberFortune {
         prompt += `三才配置：${nameAnalysis.sanCai.tianWuXing}${nameAnalysis.sanCai.renWuXing}${nameAnalysis.sanCai.diWuXing} (${nameAnalysis.sanCai.jiXiong})\n`;
         prompt += `本地规则参考分：${nameAnalysis.score}分（仅作参考证据，不得直接作为最终评分）\n\n`;
         prompt += `评分原则：最终综合评分必须由你完成全部维度分析后独立给出。请综合考虑命理匹配、字义文化、音形美感、社会使用体验与经典出处可信度；不得照抄本地规则参考分，也不得只围绕该分数微调。\n`;
+        prompt += `评分权重：命理匹配30%、字义文化30%、音形美感25%、社会使用15%。总分应与四个维度的加权结果基本一致；五格、三才只作为命理维度中的参考证据，不得重复扣分。\n`;
         prompt += `完成详细分析后，请在全文末尾追加一个 JSON 代码块，严格使用以下结构：\n`;
         prompt += `{"score":0到100的整数,"confidence":"高/中/低","summary":"一句话总评","dimensions":{"命理匹配":0到100,"字义文化":0到100,"音形美感":0到100,"社会使用":0到100},"analysis":"主要加分项、扣分项及改进建议"}\n\n`;
 
         // 输出格式要求
-        prompt += `请按以下格式输出分析结果：\n\n`;
-        prompt += `## 🎯 AI深度测名分析报告\n\n`;
-        prompt += `### 📊 姓名综合评估\n\n`;
+        prompt += `请按以下四段格式输出，正文不要展示或解释 JSON：\n\n`;
+        prompt += `## 姓名综合结论\n`;
         prompt += `**AI综合评分**：[分数]/100\n`;
-        prompt += `**八字匹配度**：[详细分析姓名与八字的匹配程度]\n`;
-        prompt += `**五格数理分析**：[详细分析五格配置的吉凶]\n`;
-        prompt += `**三才配置分析**：[详细分析三才配置的影响]\n\n`;
+        prompt += `**一句话结论**：[先说明是否推荐保留，以及最重要的理由]\n\n`;
 
-        prompt += `### 📚 字义文化分析\n\n`;
+        prompt += `## 关键证据\n`;
+        prompt += `**命理匹配**：[八字五行与姓名五行的具体对应；五格三才只作补充]\n`;
+        prompt += `**字义与出处**：\n`;
         const surname = fullName[0];
         const firstName = fullName.slice(1);
-        prompt += `**姓氏分析**：\n`;
-        prompt += `- ${surname}：姓氏来源、历史文化、家族寓意\n\n`;
-        prompt += `**名字分析**：\n`;
+        prompt += `- ${surname}：姓氏与名字组合后的整体语义\n`;
         for (let i = 0; i < firstName.length; i++) {
-            prompt += `- ${firstName[i]}：字义、出处典故、文化内涵、诗词引用\n`;
+            prompt += `- ${firstName[i]}：本义、文化内涵、可核验出处和原文；无法核验写“出处待考”\n`;
         }
-        prompt += `- 整体寓意：姓名组合的整体含义和文化底蕴\n\n`;
+        prompt += `**音形体验**：[声调、连读、谐音、书写与辨识度]\n\n`;
 
-        prompt += `### 🎵 音韵美学分析\n\n`;
-        prompt += `**声调搭配**：[分析声调的和谐程度]\n`;
-        prompt += `**音韵效果**：[分析读音的美感和朗朗上口程度]\n`;
-        prompt += `**谐音分析**：[检查是否有不良谐音]\n\n`;
+        prompt += `## 优势与权衡\n`;
+        prompt += `- 主要优势：[最多3项，每项引用具体证据]\n`;
+        prompt += `- 需要权衡：[最多2项，说明影响程度，避免夸大]\n\n`;
 
-        prompt += `### 🔮 命理匹配分析\n\n`;
-        prompt += `**五行补益**：[分析姓名五行对八字的补益作用]\n`;
-        prompt += `**格局影响**：[分析姓名对命理格局的影响]\n`;
-        prompt += `**运势助力**：[分析姓名对各方面运势的助力]\n\n`;
+        prompt += `## 最终建议\n`;
+        prompt += `**是否建议改名**：[保留/谨慎考虑/建议调整]\n`;
+        prompt += `**行动建议**：[给出1至3条与读音、书写或实际使用有关的可执行建议，不输出开运、健康或人生预测]\n\n`;
 
-        prompt += `### 💡 改进建议\n\n`;
-        prompt += `**优点总结**：[总结姓名的优点和亮点]\n`;
-        prompt += `**不足之处**：[指出姓名的不足或需要注意的地方]\n`;
-        prompt += `**改进方向**：[如果需要改名，提供具体的改进建议]\n`;
-        prompt += `**使用建议**：[如何更好地发挥姓名的正面作用]\n\n`;
-
-        prompt += `### 🌟 人生指导\n\n`;
-        prompt += `**性格特质**：[根据姓名和八字分析性格特点]\n`;
-        prompt += `**事业发展**：[适合的事业方向和发展建议]\n`;
-        prompt += `**人际关系**：[人际交往的优势和注意事项]\n`;
-        prompt += `**健康养生**：[根据五行分析健康养生建议]\n`;
-        prompt += `**开运建议**：[具体的开运方法和注意事项]\n\n`;
+        prompt += `## 测名输出质量控制（必须执行）\n`;
+        prompt += `- 这是对“现有姓名”的解释性评估，不是重新计算一个机械分数。五格、三才、笔画、五行和本地参考分只能作为证据；最终分数必须在完整分析后独立判断。\n`;
+        prompt += `- 先用一句话告诉读者整体结论，再分开说明命理证据、字义文化、音形美感和社会使用体验；每个维度都要引用输入中的具体信息。\n`;
+        prompt += `- 字义和出处采用证据分级：已给出且可核验的出处才可引用；不确定的典故写“出处待考”，不得为了增强文采而编造原文。\n`;
+        prompt += `- 不要把姓名直接等同于性格、职业、健康或人生结果，不做确定性预测；健康、财富和重大决策建议应提醒用户结合现实专业意见。\n`;
+        prompt += `- 用普通人能理解的语言解释“天格、人格、地格、三才”等术语，每个术语后都补一句实际含义，避免堆砌术语或重复段落。\n`;
+        prompt += `- 改进建议必须可执行，例如读音替换、使用场景复核、签名书写测试或候选字方向；没有必要改名时要明确说明，不制造焦虑。\n`;
+        prompt += `- 只输出报告正文和最后的 JSON 代码块，不输出思维链、模板占位符或 JSON 之后的解释；完成后检查姓名、分数、维度名称前后一致。\n\n`;
 
         prompt += `请确保分析专业、详细、实用，既要体现传统姓名学的深度，也要结合现代生活的实际需求。特别要注重字义的文化内涵和诗词典故的准确引用。`;
 
         return prompt;
+    }
+
+    extractStructuredJSONObjects(content, requiredKey) {
+        const text = String(content || '');
+        const objects = [];
+        for (let start = text.length - 1; start >= 0; start -= 1) {
+            if (text[start] !== '{') continue;
+            let depth = 0;
+            let inString = false;
+            let escaped = false;
+            for (let index = start; index < text.length; index += 1) {
+                const char = text[index];
+                if (inString) {
+                    if (escaped) escaped = false;
+                    else if (char === '\\') escaped = true;
+                    else if (char === '"') inString = false;
+                    continue;
+                }
+                if (char === '"') inString = true;
+                else if (char === '{') depth += 1;
+                else if (char === '}') {
+                    depth -= 1;
+                    if (depth === 0) {
+                        const candidate = text.slice(start, index + 1);
+                        if (!requiredKey || candidate.includes(`"${requiredKey}"`)) objects.push(candidate);
+                        break;
+                    }
+                }
+            }
+        }
+        return [...new Set(objects)];
+    }
+
+    stripCemingScoringJSON(content) {
+        let display = String(content || '');
+        display = display.replace(/```(?:json)?\s*([\s\S]*?)```/gi, (block, body) => {
+            return /"score"\s*:/.test(body) && /"dimensions"\s*:/.test(body) ? '' : block;
+        });
+        this.extractStructuredJSONObjects(display, 'score').forEach((candidate) => {
+            try {
+                const parsed = JSON.parse(candidate);
+                if (Number.isInteger(parsed.score) && parsed.dimensions && typeof parsed.dimensions === 'object') {
+                    display = display.replace(candidate, '');
+                }
+            } catch (error) {
+                // Keep non-JSON braces in the readable report.
+            }
+        });
+        return display
+            .replace(/^\s*`?json\s*`?\s*$/gim, '')
+            .replace(/^\s*`\s*$/gm, '')
+            .replace(/^\s*--\s*$/gm, '')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
     }
 
     // 解析大模型在报告末尾返回的结构化综合评分
@@ -2663,7 +2816,8 @@ class CyberFortune {
             .map((match) => match[1].trim())
             .filter(Boolean)
             .reverse();
-        const candidates = [...fencedBlocks, content.trim()];
+        const balancedObjects = this.extractStructuredJSONObjects(content, 'score');
+        const candidates = [...fencedBlocks, ...balancedObjects, content.trim()];
 
         const cleanText = (value, maxLength = 1000) =>
             typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
@@ -2843,7 +2997,7 @@ class CyberFortune {
                 messages: [
                     {
                         role: "system",
-                        content: "你是精通中国传统姓名学和现代起名理论的专家，擅长结合八字命理、五格数理、三才配置、字义内涵、音韵美学等多个维度进行综合姓名分析。具备深厚的古典文学功底，能够准确分析汉字的文化内涵和诗词出处。"
+                        content: "你是精通传统姓名学与现代语言文化的分析助手。请把八字、五格、三才和五行当作可解释证据，结合字义、音形、出处核验和现实使用体验独立判断；不编造典故，不输出宿命化结论，不展示思维链，并严格遵守用户提示中的报告结构和末尾 JSON 要求。"
                     },
                     {
                         role: "user",
@@ -2924,6 +3078,7 @@ class CyberFortune {
             // 完成处理
             console.log('AI分析完成，总响应长度:', fullResponse.length);
             this.applyCemingAIScore(fullResponse);
+            aiOutput.innerHTML = this.formatMarkdown(this.stripCemingScoringJSON(fullResponse));
             processingSteps.innerHTML += '✅ AI测名分析完成<br>';
             processingMessage.textContent = '分析完成！';
 
@@ -2956,7 +3111,7 @@ class CyberFortune {
                 const content = result.choices?.[0]?.message?.content || '';
 
                 if (content) {
-                    aiOutput.innerHTML = this.formatMarkdown(content);
+                    aiOutput.innerHTML = this.formatMarkdown(this.stripCemingScoringJSON(content));
                     this.fullCemingAIResponse = content;
                     this.applyCemingAIScore(content);
                     copyBtn.style.display = 'block';
@@ -3012,7 +3167,7 @@ class CyberFortune {
         if (!this.fullCemingAIResponse) return;
 
         const textArea = document.createElement('textarea');
-        textArea.value = this.fullCemingAIResponse;
+        textArea.value = this.stripCemingScoringJSON(this.fullCemingAIResponse);
         document.body.appendChild(textArea);
         textArea.select();
 
@@ -5759,6 +5914,14 @@ class CyberFortune {
         prompt += `## 📝 总结与祝福\n`;
         prompt += `[对这对情侣的总结性评价和美好祝福]\n\n`;
 
+        prompt += `## 合婚输出质量控制（必须执行）\n`;
+        prompt += `- 本地生肖、五行、十神和年龄规则只是观察证据，不能直接决定匹配等级或最终分数；先解释证据，再结合现代关系因素独立判断。\n`;
+        prompt += `- 资料中没有提供的完整命盘、性格经历、沟通记录或现实条件不得臆测；明确区分“输入事实”“传统文化视角”和“需要双方验证的假设”。\n`;
+        prompt += `- 不使用“注定、必然、天作之合、绝对不合”等宿命化结论，不把生肖或八字当作替代沟通、同意、责任和专业咨询的依据。\n`;
+        prompt += `- 重点回答普通人最关心的实际问题：哪里容易误会、冲突如何发生、如何沟通、如何共同做决定；每项风险都要配一个具体可执行的修复动作。\n`;
+        prompt += `- 关于财务、健康、生育、子女和法律等敏感话题，只能给一般性的讨论框架和沟通建议，不能作预测、诊断或保证。\n`;
+        prompt += `- 结论要体现不确定性和双方能动性，避免把低置信度证据写成高置信度判断；JSON 必须是全文最后一个内容，且分数、维度、摘要和正文保持一致。\n\n`;
+
         prompt += `请确保分析专业、详细、实用，既要体现传统合婚理论的深度，也要结合现代情感心理学的科学性，为这对情侣提供真正有价值的指导建议。分析应该具体、可操作，避免空泛的表述。`;
 
         return prompt;
@@ -5771,7 +5934,8 @@ class CyberFortune {
             .map((match) => match[1].trim())
             .filter(Boolean)
             .reverse();
-        const candidates = [...fencedBlocks, content.trim()];
+        const balancedObjects = this.extractStructuredJSONObjects(content, 'score');
+        const candidates = [...fencedBlocks, ...balancedObjects, content.trim()];
         const cleanText = (value, maxLength = 1000) =>
             typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
 
@@ -5917,7 +6081,7 @@ class CyberFortune {
             messages: [
                 {
                     role: 'system',
-                    content: '你是精通中国传统合婚理论和现代情感心理学的专家。请将传统规则作为参考证据，并依据双方现实相处、沟通和长期发展因素独立给出综合判断。'
+                    content: '你是传统合婚文化与现代关系沟通分析助手。请把生肖、五行、十神和年龄规则当作参考证据，结合沟通、价值观、冲突修复和现实条件独立判断；不做宿命化预测，不臆测缺失资料，不替代心理、医疗、法律或财务专业意见，并严格遵守用户提示中的报告结构和末尾 JSON 要求。'
                 },
                 {
                     role: 'user',
@@ -6355,16 +6519,25 @@ class CyberFortune {
         });
         report += '\n';
 
-        // 起名建议
-        report += '起名建议\n';
+        // AI 综合排名
+        report += 'AI综合排名前5\n';
         report += '-'.repeat(30) + '\n';
-        nameSuggestions.forEach((suggestion, index) => {
+        const rankedNames = this.getAINamingTop5ForReport();
+        if (!rankedNames.length) {
+            report += 'AI尚未返回可校验的前5排名，请等待分析完成后再下载报告。\n\n';
+        }
+        rankedNames.forEach((suggestion, index) => {
             report += `${index + 1}. ${suggestion.fullName}\n`;
-            report += `   评分：${suggestion.score}分\n`;
+            report += `   AI综合评分：${suggestion.aiScore}分\n`;
+            report += `   推荐理由：${suggestion.reason}\n`;
+            if (suggestion.tradeoff) report += `   需要权衡：${suggestion.tradeoff}\n`;
             report += `   五行：${(suggestion.wuXingMatch || []).join('、') || '待考'}\n`;
             report += `   用字：${(suggestion.characterDetails || []).map((item) => `${item.char}${item.traditionalForm && item.traditionalForm !== item.char ? `→${item.traditionalForm}` : ''}（${item.element || '未分类'}·${item.strokes || '?'}画）`).join('、')}\n`;
             report += `   出处：${suggestion.source?.work || '待考'}${suggestion.source?.section ? ` · ${suggestion.source.section}` : ''}\n`;
             report += `   原文：${suggestion.source?.quote || '暂无已核验引文'}\n`;
+            this.getNamingCharacterSourceLines(suggestion).forEach((item) => {
+                report += `   取字“${item.char}”：${item.sourceTitle}，见“${item.quote}”\n`;
+            });
             report += `   寓意：${suggestion.source?.meaning || '请结合原典语境复核'}\n\n`;
         });
 
@@ -6405,6 +6578,7 @@ class CyberFortune {
     generateNamingReportHTML(birthData, baziResult, nameSuggestions) {
         const aiOutput = document.getElementById('ai-naming-output');
         const aiAnalysis = aiOutput ? aiOutput.innerHTML : '';
+        const rankedNames = this.getAINamingTop5ForReport();
 
         return `
             <div style="width: 800px; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 30%, #0f3460 60%, #1a1a2e 100%); color: white; padding: 40px; box-sizing: border-box; font-family: 'Microsoft YaHei', Arial, sans-serif;">
@@ -6457,15 +6631,18 @@ class CyberFortune {
                 </div>
 
                 <div style="background: rgba(0, 212, 255, 0.1); padding: 25px; border-radius: 12px; margin: 30px 0; border: 1px solid rgba(0, 212, 255, 0.3);">
-                    <h3 style="color: #00d4ff; margin-bottom: 20px; font-size: 1.3rem;">起名建议</h3>
-                    ${nameSuggestions.map((suggestion, index) => `
+                    <h3 style="color: #00d4ff; margin-bottom: 20px; font-size: 1.3rem;">AI综合排名前5</h3>
+                    ${rankedNames.length ? rankedNames.map((suggestion, index) => `
                         <div style="background: rgba(0, 0, 0, 0.3); padding: 20px; margin: 15px 0; border-radius: 8px; border-left: 4px solid #00ff88;">
-                            <div style="font-size: 1.2rem; font-weight: bold; color: #00ff88; margin-bottom: 10px;">${index + 1}. ${suggestion.fullName} <span style="color: #00d4ff;">(${suggestion.score}分)</span></div>
+                            <div style="font-size: 1.2rem; font-weight: bold; color: #00ff88; margin-bottom: 10px;">${index + 1}. ${suggestion.fullName} <span style="color: #00d4ff;">(${suggestion.aiScore}分)</span></div>
+                            <div style="margin: 8px 0;"><strong style="color: #00ff88;">推荐理由：</strong>${suggestion.reason}</div>
+                            ${suggestion.tradeoff ? `<div style="margin: 8px 0;"><strong style="color: #f7c873;">需要权衡：</strong>${suggestion.tradeoff}</div>` : ''}
                             <div style="margin: 8px 0;"><strong style="color: #00ff88;">五行：</strong>${(suggestion.wuXingMatch || []).join('、') || '待考'}</div>
                             <div style="margin: 8px 0;"><strong style="color: #00ff88;">出处：</strong>${suggestion.source?.work || '待考'}${suggestion.source?.section ? ` · ${suggestion.source.section}` : ''}</div>
                             <div style="margin: 8px 0;"><strong style="color: #00ff88;">原文：</strong>“${suggestion.source?.quote || '暂无已核验引文'}”</div>
+                            ${this.getNamingCharacterSourceLines(suggestion).map((item) => `<div style="margin: 8px 0;"><strong style="color: #00ff88;">取字“${item.char}”：</strong>${item.sourceTitle}，见“${item.quote}”</div>`).join('')}
                         </div>
-                    `).join('')}
+                    `).join('') : '<p>AI尚未返回可校验的前5排名，请等待分析完成后再生成报告。</p>'}
                 </div>
 
                 ${aiAnalysis ? `
@@ -6500,6 +6677,7 @@ class CyberFortune {
     generateNamingPrintableHTML(birthData, baziResult, nameSuggestions) {
         const aiOutput = document.getElementById('ai-naming-output');
         const aiAnalysis = aiOutput ? aiOutput.innerHTML : '';
+        const rankedNames = this.getAINamingTop5ForReport();
 
         return `
             <!DOCTYPE html>
@@ -6589,16 +6767,19 @@ class CyberFortune {
                     </div>
 
                     <div class="section">
-                        <div class="section-title">起名建议</div>
+                        <div class="section-title">AI综合排名前5</div>
                         <div class="name-suggestions">
-                            ${nameSuggestions.map((suggestion, index) => `
+                            ${rankedNames.length ? rankedNames.map((suggestion, index) => `
                                 <div class="name-item">
-                                    <div class="name-title">${index + 1}. ${suggestion.fullName} <span class="name-score">(${suggestion.score}分)</span></div>
+                                    <div class="name-title">${index + 1}. ${suggestion.fullName} <span class="name-score">(${suggestion.aiScore}分)</span></div>
+                                    <div><strong>推荐理由：</strong>${suggestion.reason}</div>
+                                    ${suggestion.tradeoff ? `<div><strong>需要权衡：</strong>${suggestion.tradeoff}</div>` : ''}
                                     <div><strong>五行：</strong>${(suggestion.wuXingMatch || []).join('、') || '待考'}</div>
                                     <div><strong>出处：</strong>${suggestion.source?.work || '待考'}${suggestion.source?.section ? ` · ${suggestion.source.section}` : ''}</div>
                                     <div><strong>原文：</strong>“${suggestion.source?.quote || '暂无已核验引文'}”</div>
+                                    ${this.getNamingCharacterSourceLines(suggestion).map((item) => `<div><strong>取字“${item.char}”：</strong>${item.sourceTitle}，见“${item.quote}”</div>`).join('')}
                                 </div>
-                            `).join('')}
+                            `).join('') : '<p>AI尚未返回可校验的前5排名，请等待分析完成后再生成报告。</p>'}
                         </div>
                     </div>
 
