@@ -1,7 +1,7 @@
 {
   "scripts": {
     "build:ziwei-chart": "node scripts/esbuild-ziwei-chart.mjs",
-    "test": "node test/deployment-workflow-tests.js && node test/api-config-ui-tests.js && node test/api-routing-tests.js && node test/usability-ui-tests.js && node test/react-iztro-integration-tests.js && node test/react-iztro-runtime-tests.js && node test/naming-data-tests.js && node test/ziwei-calculator-tests.js && node test/ziwei-interpreter-tests.js && node test/pdf-report-tests.js && node test/ceming-ai-scoring-tests.js && node test/run-tests.js"
+    "test": "node test/deployment-workflow-tests.js && node test/api-config-ui-tests.js && node test/api-routing-tests.js && node test/usability-ui-tests.js && node test/react-iztro-integration-tests.js && node test/react-iztro-runtime-tests.js && node test/naming-data-tests.js && node test/ziwei-calculator-tests.js && node test/ziwei-interpreter-tests.js && node test/pdf-report-tests.js && node test/ceming-ai-scoring-tests.js && node test/marriage-ai-scoring-tests.js && node test/run-tests.js"
   },
   "dependencies": {
     "dompurify": "3.4.12",

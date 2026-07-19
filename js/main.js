@@ -3110,9 +3110,9 @@ class CyberFortune {
 
         if (!resultPanel || !resultContent) return;
 
-        // 每次测名都清空上一次的 AI 评分，避免旧结果串入新报告。
-        this.cemingAIScoreResult = null;
-        this.fullCemingAIResponse = '';
+        // 每次合婚都清空上一次的 AI 结论，避免旧结果串入新报告。
+        this.marriageAIScoreResult = null;
+        this.fullMarriageAIResponse = '';
 
         // 生成AI分析提示词
         const aiPrompt = this.generateMarriageAIPrompt(marriageData, marriageResult);
@@ -3128,61 +3128,23 @@ class CyberFortune {
             <div class="marriage-analysis">
                 <div class="match-score">
                     <div class="score-circle large">
-                        <span class="score-number">${marriageResult.totalScore}</span>
-                        <span class="score-label">分</span>
+                        <span class="score-number" id="marriage-ai-score-number">--</span>
+                        <span class="score-label">AI综合分</span>
                     </div>
-                    <div class="match-level">${marriageResult.level}</div>
+                    <p id="marriage-ai-score-status" class="score-status">等待大模型完成综合判断</p>
+                    <p class="score-reference-note">生肖、五行、十神和年龄等本地规则仅作为分析证据，不是最终结论。</p>
+                    <p id="marriage-ai-score-summary" class="score-summary"></p>
+                    <div id="marriage-ai-score-dimensions" class="score-dimensions"></div>
                 </div>
 
-                <div class="match-details">
-                    <div class="match-item">
-                        <h4>生肖配对</h4>
-                        <div class="match-score-bar">
-                            <div class="score-fill" style="width: ${marriageResult.shengXiaoMatch.score}%"></div>
-                            <span class="score-text">${marriageResult.shengXiaoMatch.score}分</span>
-                        </div>
-                        <p>${marriageResult.shengXiaoMatch.analysis}</p>
-                    </div>
-
-                    <div class="match-item">
-                        <h4>五行配对</h4>
-                        <div class="match-score-bar">
-                            <div class="score-fill" style="width: ${marriageResult.wuXingMatch.score}%"></div>
-                            <span class="score-text">${marriageResult.wuXingMatch.score}分</span>
-                        </div>
-                        <p>${marriageResult.wuXingMatch.analysis}</p>
-                    </div>
-
-                    <div class="match-item">
-                        <h4>十神配对</h4>
-                        <div class="match-score-bar">
-                            <div class="score-fill" style="width: ${marriageResult.shiShenMatch.score}%"></div>
-                            <span class="score-text">${marriageResult.shiShenMatch.score}分</span>
-                        </div>
-                        <p>${marriageResult.shiShenMatch.analysis}</p>
-                    </div>
-
-                    <div class="match-item">
-                        <h4>年龄配对</h4>
-                        <div class="match-score-bar">
-                            <div class="score-fill" style="width: ${marriageResult.ageMatch.score}%"></div>
-                            <span class="score-text">${marriageResult.ageMatch.score}分</span>
-                        </div>
-                        <p>${marriageResult.ageMatch.analysis}</p>
-                    </div>
-                </div>
-
-                <div class="suggestions">
-                    <h4>改进建议</h4>
-                    <ul>
-                        ${marriageResult.suggestions.map(suggestion => `<li>${suggestion}</li>`).join('')}
-                    </ul>
+                <div class="analysis-pending-note">
+                    本地八字、生肖、五行和年龄规则已作为 AI 推理证据；最终结论将在大模型完成综合判断后显示。
                 </div>
 
                 <!-- AI深度分析区域 -->
                 <div class="ai-analysis-section">
-                    <h4>🤖 AI深度合婚分析</h4>
-                    <p class="ai-description">基于传统合婚理论，结合现代心理学和情感分析，为您提供更深入的合婚指导</p>
+                    <h4>AI综合合婚判断</h4>
+                    <p class="ai-description">大模型将综合本地规则证据、双方命盘信息和现实相处维度后给出最终判断。</p>
 
                     <!-- AI分析自动开始，无需手动按钮 -->
 
@@ -5677,21 +5639,27 @@ class CyberFortune {
         prompt += `出生地区：${female.birthProvince || '未知'} ${female.birthCity || '未知'}\n`;
         prompt += `生肖：${this.getZodiacAnimal(female.year)}\n\n`;
 
-        // 基础合婚分析结果
-        prompt += `【基础合婚分析结果】\n`;
-        prompt += `综合匹配度：${marriageResult.totalScore}分 (${marriageResult.level})\n\n`;
+        // 本地规则结果只作为模型推理证据，不直接作为最终结论。
+        prompt += `【本地规则参考证据】\n`;
+        prompt += `本地加权参考分：${marriageResult.totalScore}分 (${marriageResult.level})，仅作参考证据，不得直接作为最终评分或匹配结论。\n\n`;
 
-        prompt += `生肖配对：${marriageResult.shengXiaoMatch.score}分\n`;
+        prompt += `生肖规则观察值：${marriageResult.shengXiaoMatch.score}分\n`;
         prompt += `${marriageResult.shengXiaoMatch.analysis}\n\n`;
 
-        prompt += `五行配对：${marriageResult.wuXingMatch.score}分\n`;
+        prompt += `五行规则观察值：${marriageResult.wuXingMatch.score}分\n`;
         prompt += `${marriageResult.wuXingMatch.analysis}\n\n`;
 
-        prompt += `十神配对：${marriageResult.shiShenMatch.score}分\n`;
+        prompt += `十神规则观察值：${marriageResult.shiShenMatch.score}分\n`;
         prompt += `${marriageResult.shiShenMatch.analysis}\n\n`;
 
-        prompt += `年龄配对：${marriageResult.ageMatch.score}分\n`;
+        prompt += `年龄差规则观察值：${marriageResult.ageMatch.score}分\n`;
         prompt += `${marriageResult.ageMatch.analysis}\n\n`;
+
+        prompt += `【综合评分原则】\n`;
+        prompt += `最终综合评分必须由你完成全部维度分析后独立给出。请综合命理互动、沟通模式、价值观与生活目标、冲突修复能力、现实条件和长期成长空间；不得照抄本地加权参考分，也不得只围绕该分数微调。\n`;
+        prompt += `传统命理内容只能作为文化视角，不能替代双方真实相处、沟通、责任感与共同选择。避免使用“天作之合”“注定不合”等绝对化结论。\n`;
+        prompt += `完成详细分析后，请在全文末尾追加一个 JSON 代码块，严格使用以下结构：\n`;
+        prompt += `{"score":0到100的整数,"confidence":"高/中/低","summary":"一句话综合结论","dimensions":{"命理互动":0到100,"沟通适配":0到100,"价值观与生活":0到100,"风险修复":0到100},"analysis":"主要优势、风险依据与可执行建议"}\n\n`;
 
         prompt += `【分析要求】\n`;
         prompt += `请基于以上信息，从以下几个维度进行深入分析：\n\n`;
@@ -5796,6 +5764,89 @@ class CyberFortune {
         return prompt;
     }
 
+    parseMarriageAIResponse(content) {
+        if (typeof content !== 'string' || !content.trim()) return null;
+
+        const fencedBlocks = [...content.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi)]
+            .map((match) => match[1].trim())
+            .filter(Boolean)
+            .reverse();
+        const candidates = [...fencedBlocks, content.trim()];
+        const cleanText = (value, maxLength = 1000) =>
+            typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
+
+        for (const candidate of candidates) {
+            let data;
+            try {
+                data = JSON.parse(candidate);
+            } catch (error) {
+                continue;
+            }
+
+            if (!data || typeof data !== 'object' || !Number.isInteger(data.score) || data.score < 0 || data.score > 100) {
+                continue;
+            }
+
+            const dimensions = {};
+            if (data.dimensions && typeof data.dimensions === 'object' && !Array.isArray(data.dimensions)) {
+                Object.entries(data.dimensions).forEach(([label, value]) => {
+                    if (typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100) {
+                        dimensions[String(label).trim().slice(0, 40)] = Math.round(value);
+                    }
+                });
+            }
+
+            return {
+                score: data.score,
+                confidence: cleanText(data.confidence, 20),
+                summary: cleanText(data.summary, 300),
+                dimensions,
+                analysis: cleanText(data.analysis, 2000)
+            };
+        }
+
+        return null;
+    }
+
+    getMarriageAIScoreResult() {
+        if (this.marriageAIScoreResult) return this.marriageAIScoreResult;
+        const parsed = this.parseMarriageAIResponse(this.fullMarriageAIResponse || '');
+        if (parsed) this.marriageAIScoreResult = parsed;
+        return parsed;
+    }
+
+    applyMarriageAIScore(content) {
+        const parsed = this.parseMarriageAIResponse(content);
+        const scoreNumber = document.getElementById('marriage-ai-score-number');
+        const scoreStatus = document.getElementById('marriage-ai-score-status');
+        const scoreSummary = document.getElementById('marriage-ai-score-summary');
+        const scoreDimensions = document.getElementById('marriage-ai-score-dimensions');
+
+        if (!parsed) {
+            this.marriageAIScoreResult = null;
+            if (scoreNumber) scoreNumber.textContent = '--';
+            if (scoreStatus) scoreStatus.textContent = 'AI未返回可校验的综合评分';
+            if (scoreSummary) scoreSummary.textContent = '详细分析已保留，但本次最终结论不可用。';
+            if (scoreDimensions) scoreDimensions.innerHTML = '';
+            return null;
+        }
+
+        this.marriageAIScoreResult = parsed;
+        if (scoreNumber) scoreNumber.textContent = String(parsed.score);
+        if (scoreStatus) {
+            scoreStatus.textContent = `大模型已完成综合判断${parsed.confidence ? ` · 可信度：${parsed.confidence}` : ''}`;
+        }
+        if (scoreSummary) scoreSummary.textContent = parsed.summary || 'AI综合结论已生成';
+        if (scoreDimensions) {
+            const entries = Object.entries(parsed.dimensions);
+            scoreDimensions.innerHTML = entries.length
+                ? entries.map(([label, score]) => `<span>${this.escapeHTML(label)}：${score}</span>`).join('')
+                : '';
+        }
+
+        return parsed;
+    }
+
     // 获取生肖
     getZodiacAnimal(year) {
         const zodiacAnimals = ['鼠', '牛', '虎', '兔', '龙', '蛇', '马', '羊', '猴', '鸡', '狗', '猪'];
@@ -5833,6 +5884,10 @@ class CyberFortune {
             this.showMarriageAIError('请输入API地址');
             return;
         }
+        if (!modelName) {
+            this.showMarriageAIError('请输入模型名称');
+            return;
+        }
 
         // 显示处理状态
         this.showMarriageAIProcessing();
@@ -5853,6 +5908,26 @@ class CyberFortune {
     async callMarriageAIAPI(prompt, apiKey, modelName, apiUrl) {
         const processingSteps = document.getElementById('ai-marriage-processing-steps');
         const processingMessage = document.getElementById('ai-marriage-processing-message');
+        const resultSection = document.getElementById('ai-marriage-result-section');
+        const output = document.getElementById('ai-marriage-output');
+        const copyBtn = document.getElementById('copy-ai-marriage-result');
+
+        const requestBody = {
+            model: modelName,
+            messages: [
+                {
+                    role: 'system',
+                    content: '你是精通中国传统合婚理论和现代情感心理学的专家。请将传统规则作为参考证据，并依据双方现实相处、沟通和长期发展因素独立给出综合判断。'
+                },
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ],
+            stream: true,
+            temperature: 0.6,
+            max_tokens: 6000
+        };
 
         try {
             // 显示连接状态
@@ -5860,30 +5935,6 @@ class CyberFortune {
             processingMessage.textContent = '建立连接中...';
 
             console.log('合婚AI分析开始:', { apiUrl, modelName, promptLength: prompt.length });
-
-            // 构建请求体
-            const requestBody = {
-                model: modelName,
-                messages: [
-                    {
-                        role: "system",
-                        content: "你是精通中国传统合婚理论和现代情感心理学的专家，擅长结合传统命理与现代心理学为情侣提供深入的合婚分析和情感指导。"
-                    },
-                    {
-                        role: "user",
-                        content: prompt
-                    }
-                ],
-                stream: true
-            };
-
-            // 根据模型调整参数
-            if (modelName.includes('gpt')) {
-                requestBody.temperature = 0.7;
-                requestBody.max_tokens = 4000;
-            } else if (modelName.includes('claude')) {
-                requestBody.max_tokens = 4000;
-            }
 
             processingSteps.innerHTML += '📡 发送分析请求...<br>';
             processingMessage.textContent = '正在发送请求...';
@@ -5902,23 +5953,20 @@ class CyberFortune {
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let fullResponse = '';
-
-            // 显示结果区域
-            const resultSection = document.getElementById('ai-marriage-result-section');
-            const output = document.getElementById('ai-marriage-output');
-            const copyBtn = document.getElementById('copy-ai-marriage-result');
+            let buffer = '';
 
             if (resultSection) {
                 resultSection.style.display = 'block';
-                output.innerHTML = '<div class="ai-response-streaming">正在生成分析...</div>';
+                if (output) output.innerHTML = '<div class="ai-response-streaming">正在生成分析...</div>';
             }
 
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
 
-                const chunk = decoder.decode(value);
-                const lines = chunk.split('\n');
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
 
                 for (const line of lines) {
                     if (line.startsWith('data: ')) {
@@ -5942,6 +5990,8 @@ class CyberFortune {
                 }
             }
 
+            this.fullMarriageAIResponse = fullResponse;
+            this.applyMarriageAIScore(fullResponse);
             processingSteps.innerHTML += '✅ 分析完成！<br>';
             processingMessage.textContent = '分析完成';
 
@@ -5953,8 +6003,27 @@ class CyberFortune {
             console.log('合婚AI分析完成');
 
         } catch (error) {
-            console.error('合婚AI API调用失败:', error);
-            throw error;
+            console.error('流式合婚分析失败，尝试非流式调用:', error);
+
+            try {
+                const nonStreamResponse = await this.requestAIResponse(apiUrl, apiKey, { ...requestBody, stream: false });
+                if (!nonStreamResponse.ok) {
+                    const errorData = await nonStreamResponse.json().catch(() => ({}));
+                    throw new Error(`API错误 (${nonStreamResponse.status}): ${this.getApiErrorMessage(errorData)}`);
+                }
+
+                const result = await nonStreamResponse.json();
+                const content = result.choices?.[0]?.message?.content || '';
+                if (!content) throw new Error('AI返回内容为空');
+
+                if (resultSection) resultSection.style.display = 'block';
+                if (output) output.innerHTML = this.formatMarriageAIResponse(content);
+                this.fullMarriageAIResponse = content;
+                this.applyMarriageAIScore(content);
+                if (copyBtn) copyBtn.style.display = 'inline-block';
+            } catch (fallbackError) {
+                throw new Error(`API通信失败: ${fallbackError.message}`);
+            }
         }
     }
 
@@ -5989,6 +6058,12 @@ class CyberFortune {
     // 显示合婚AI错误
     showMarriageAIError(message) {
         console.error('合婚AI错误:', message);
+
+        this.marriageAIScoreResult = null;
+        const scoreNumber = document.getElementById('marriage-ai-score-number');
+        const scoreStatus = document.getElementById('marriage-ai-score-status');
+        if (scoreNumber) scoreNumber.textContent = '--';
+        if (scoreStatus) scoreStatus.textContent = `AI综合判断未生成：${message}`;
 
         const resultSection = document.getElementById('ai-marriage-result-section');
         const output = document.getElementById('ai-marriage-output');
@@ -7042,6 +7117,7 @@ class CyberFortune {
     // 生成合婚完整报告文本
     generateMarriageCompleteReport(marriageData, marriageResult) {
         let report = '';
+        const aiScore = this.getMarriageAIScoreResult();
 
         // 报告标题
         report += '赛博合婚 - 完整合婚分析报告\n';
@@ -7061,27 +7137,22 @@ class CyberFortune {
         // 合婚分析
         report += '合婚分析\n';
         report += '-'.repeat(30) + '\n';
-        report += `综合匹配度：${marriageResult.totalScore}分 (${marriageResult.level})\n\n`;
+        report += `AI综合评分：${aiScore ? `${aiScore.score}分` : '尚未生成'}\n`;
+        if (aiScore?.confidence) report += `AI判断可信度：${aiScore.confidence}\n`;
+        if (aiScore?.summary) report += `AI综合结论：${aiScore.summary}\n`;
+        report += '本地规则仅作为分析证据，不代表最终结论。\n\n';
 
-        report += `生肖配对：${marriageResult.shengXiaoMatch.score}分\n`;
+        report += '本地规则证据：生肖配对\n';
         report += `${marriageResult.shengXiaoMatch.analysis}\n\n`;
 
-        report += `五行配对：${marriageResult.wuXingMatch.score}分\n`;
+        report += '本地规则证据：五行配对\n';
         report += `${marriageResult.wuXingMatch.analysis}\n\n`;
 
-        report += `十神配对：${marriageResult.shiShenMatch.score}分\n`;
+        report += '本地规则证据：十神配对\n';
         report += `${marriageResult.shiShenMatch.analysis}\n\n`;
 
-        report += `年龄配对：${marriageResult.ageMatch.score}分\n`;
+        report += '本地规则证据：年龄差\n';
         report += `${marriageResult.ageMatch.analysis}\n\n`;
-
-        // 改进建议
-        report += '改进建议\n';
-        report += '-'.repeat(30) + '\n';
-        marriageResult.suggestions.forEach((suggestion, index) => {
-            report += `${index + 1}. ${suggestion}\n`;
-        });
-        report += '\n';
 
         // AI分析结果
         const aiOutput = document.getElementById('ai-marriage-output');
@@ -7117,9 +7188,10 @@ class CyberFortune {
     }
 
     // 生成合婚报告HTML（用于长图生成）
-    generateMarriageReportHTML(marriageData, marriageResult) {
+    generateMarriagePrintableHTML(marriageData, marriageResult) {
         const aiOutput = document.getElementById('ai-marriage-output');
         const aiAnalysis = aiOutput ? aiOutput.innerHTML : '';
+        const aiScore = this.getMarriageAIScoreResult();
 
         return `
             <div style="width: 800px; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 30%, #0f3460 60%, #1a1a2e 100%); color: white; padding: 40px; box-sizing: border-box; font-family: 'Microsoft YaHei', Arial, sans-serif;">
@@ -7153,9 +7225,9 @@ class CyberFortune {
 
                 <div style="text-align: center; margin: 30px 0;">
                     <div style="display: inline-block; width: 150px; height: 150px; border: 4px solid #00d4ff; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0, 212, 255, 0.1);">
-                        <div style="font-size: 2.5rem; font-weight: bold; color: #00d4ff;">${marriageResult.totalScore}</div>
-                        <div style="font-size: 1rem; color: #00ff88;">分</div>
-                        <div style="font-size: 0.9rem; color: #ff0080; margin-top: 5px;">${marriageResult.level}</div>
+                        <div style="font-size: 2.5rem; font-weight: bold; color: #00d4ff;">${aiScore ? aiScore.score : '--'}</div>
+                        <div style="font-size: 1rem; color: #00ff88;">${aiScore ? 'AI综合分' : '待AI判断'}</div>
+                        <div style="font-size: 0.9rem; color: #ff0080; margin-top: 5px;">${aiScore?.summary || '本地规则仅供参考'}</div>
                     </div>
                 </div>
 
@@ -7165,12 +7237,10 @@ class CyberFortune {
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
                         <div style="background: rgba(0, 0, 0, 0.3); padding: 15px; border-radius: 8px; border-left: 4px solid #00d4ff;">
                             <div style="color: #00d4ff; font-weight: bold; margin-bottom: 8px;">生肖配对</div>
-                            <div style="color: #00ff88; font-size: 1.2rem; margin-bottom: 5px;">${marriageResult.shengXiaoMatch.score}分</div>
                             <div style="font-size: 0.9rem; line-height: 1.5;">${marriageResult.shengXiaoMatch.analysis}</div>
                         </div>
                         <div style="background: rgba(0, 0, 0, 0.3); padding: 15px; border-radius: 8px; border-left: 4px solid #ff0080;">
                             <div style="color: #ff0080; font-weight: bold; margin-bottom: 8px;">五行配对</div>
-                            <div style="color: #00ff88; font-size: 1.2rem; margin-bottom: 5px;">${marriageResult.wuXingMatch.score}分</div>
                             <div style="font-size: 0.9rem; line-height: 1.5;">${marriageResult.wuXingMatch.analysis}</div>
                         </div>
                     </div>
@@ -7178,24 +7248,13 @@ class CyberFortune {
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <div style="background: rgba(0, 0, 0, 0.3); padding: 15px; border-radius: 8px; border-left: 4px solid #00ff88;">
                             <div style="color: #00ff88; font-weight: bold; margin-bottom: 8px;">十神配对</div>
-                            <div style="color: #00ff88; font-size: 1.2rem; margin-bottom: 5px;">${marriageResult.shiShenMatch.score}分</div>
                             <div style="font-size: 0.9rem; line-height: 1.5;">${marriageResult.shiShenMatch.analysis}</div>
                         </div>
                         <div style="background: rgba(0, 0, 0, 0.3); padding: 15px; border-radius: 8px; border-left: 4px solid #ffa500;">
                             <div style="color: #ffa500; font-weight: bold; margin-bottom: 8px;">年龄配对</div>
-                            <div style="color: #00ff88; font-size: 1.2rem; margin-bottom: 5px;">${marriageResult.ageMatch.score}分</div>
                             <div style="font-size: 0.9rem; line-height: 1.5;">${marriageResult.ageMatch.analysis}</div>
                         </div>
                     </div>
-                </div>
-
-                <div style="background: rgba(255, 0, 128, 0.1); padding: 25px; border-radius: 12px; margin: 30px 0; border: 1px solid rgba(255, 0, 128, 0.3);">
-                    <h3 style="color: #ff0080; margin-bottom: 20px; font-size: 1.3rem;">改进建议</h3>
-                    ${marriageResult.suggestions.map((suggestion, index) => `
-                        <div style="background: rgba(0, 0, 0, 0.3); padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 4px solid #00ff88;">
-                            <div style="color: #00ff88; font-weight: bold;">${index + 1}. ${suggestion}</div>
-                        </div>
-                    `).join('')}
                 </div>
 
                 ${aiAnalysis ? `
