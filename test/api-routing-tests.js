@@ -702,7 +702,7 @@ async function test(name, fn) {
                 ...baseEnv,
                 BUILTIN_AI_RATE_LIMIT_KV: {
                     get: async () => JSON.stringify({
-                        count: 20,
+                        count: 120,
                         windowStartedAt: Date.now(),
                         lastRequestAt: 0
                     }),
@@ -757,6 +757,61 @@ async function test(name, fn) {
             assert.strictEqual(secondResponse.status, 429);
             assert.match((await secondResponse.json()).error, /请求过于频繁/);
             assert.doesNotMatch(source, /BUILTIN_AI_RATE_LIMITER/);
+        } finally {
+            global.fetch = originalFetch;
+        }
+    });
+
+    await test('Cloudflare built-in AI defaults support long reports and normal repeated use', async () => {
+        const source = fs.readFileSync(path.join(projectRoot, 'functions/api/proxy.js'), 'utf8');
+        const proxyModule = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+        const originalFetch = global.fetch;
+        let forwardedBody = null;
+        const now = Date.now();
+        const request = new Request('https://cyber-fortune.pages.dev/api/proxy', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Origin: 'https://cyber-fortune.pages.dev',
+                'CF-Connecting-IP': '203.0.113.21'
+            },
+            body: JSON.stringify({
+                mode: 'builtin',
+                body: {
+                    messages: [{ role: 'user', content: '长报告上下文'.repeat(12500) }],
+                    max_tokens: 99999,
+                    stream: false
+                }
+            })
+        });
+        const env = {
+            BUILTIN_AI_API_URL: 'https://api.deepseek.com/v1/chat/completions',
+            BUILTIN_AI_API_KEY: 'server-secret-key',
+            BUILTIN_AI_MODEL: 'server-model',
+            BUILTIN_AI_ENABLED: 'true',
+            BUILTIN_AI_REQUIRE_ORIGIN: 'true',
+            BUILTIN_AI_RATE_LIMIT_KV: {
+                get: async () => JSON.stringify({
+                    count: 20,
+                    windowStartedAt: now,
+                    lastRequestAt: now - 1500
+                }),
+                put: async () => {}
+            }
+        };
+
+        global.fetch = async (_url, options) => {
+            forwardedBody = JSON.parse(options.body);
+            return new Response(JSON.stringify({ choices: [] }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        };
+
+        try {
+            const response = await proxyModule.onRequest({ request, env });
+            assert.strictEqual(response.status, 200);
+            assert.strictEqual(forwardedBody.max_tokens, 12800);
         } finally {
             global.fetch = originalFetch;
         }

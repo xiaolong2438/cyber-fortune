@@ -88,8 +88,8 @@ function getBuiltinConfig(env) {
         targetUrl,
         apiKey,
         model,
-        maxTokens: positiveInteger(env.BUILTIN_AI_MAX_TOKENS, 4000, 16000),
-        maxInputChars: positiveInteger(env.BUILTIN_AI_MAX_INPUT_CHARS, 50000, 200000)
+        maxTokens: positiveInteger(env.BUILTIN_AI_MAX_TOKENS, 12800, 16000),
+        maxInputChars: positiveInteger(env.BUILTIN_AI_MAX_INPUT_CHARS, 120000, 200000)
     };
 }
 
@@ -141,8 +141,8 @@ async function enforceBuiltinRateLimit(env, clientKey) {
     }
 
     const windowSeconds = Math.max(60, positiveInteger(env.BUILTIN_AI_RATE_WINDOW_SECONDS, 3600, 86400));
-    const maxRequests = positiveInteger(env.BUILTIN_AI_RATE_MAX_REQUESTS, 20, 1000);
-    const minIntervalMs = positiveInteger(env.BUILTIN_AI_MIN_INTERVAL_SECONDS, 5, 300) * 1000;
+    const maxRequests = positiveInteger(env.BUILTIN_AI_RATE_MAX_REQUESTS, 120, 1000);
+    const minIntervalMs = positiveInteger(env.BUILTIN_AI_MIN_INTERVAL_SECONDS, 1, 300) * 1000;
     const now = Date.now();
 
     try {

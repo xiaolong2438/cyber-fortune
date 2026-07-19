@@ -134,15 +134,17 @@ BUILTIN_AI_ALLOWED_ORIGIN=https://你的正式域名
 
 Cloudflare Pages 还必须在项目的 **Settings → Bindings → Add → KV namespace** 中创建绑定，变量名设为 `BUILTIN_AI_RATE_LIMIT_KV`。这是 Pages Functions 官方支持的绑定类型；内置 AI 找不到该绑定时会主动返回 503，不会绕过限流继续调用上游模型。具体配置可参考 [Pages Functions Bindings](https://developers.cloudflare.com/pages/functions/bindings/#kv-namespaces)。
 
-可选的额度限制：
+默认的实用额度（可按模型能力和预算继续调整）：
 
 ```text
-BUILTIN_AI_MAX_TOKENS=4000
-BUILTIN_AI_MAX_INPUT_CHARS=50000
-BUILTIN_AI_RATE_MAX_REQUESTS=20
+BUILTIN_AI_MAX_TOKENS=12800
+BUILTIN_AI_MAX_INPUT_CHARS=120000
+BUILTIN_AI_RATE_MAX_REQUESTS=120
 BUILTIN_AI_RATE_WINDOW_SECONDS=3600
-BUILTIN_AI_MIN_INTERVAL_SECONDS=5
+BUILTIN_AI_MIN_INTERVAL_SECONDS=1
 ```
+
+这组默认值允许每个 IP 每小时 120 次请求、请求间隔 1 秒，并支持较长的命理上下文和报告。若上游模型的输出上限低于 `12800`，请按该模型实际能力下调；高流量站点仍应结合 WAF 和费用告警控制成本。
 
 `BUILTIN_AI_API_URL` 必须是 OpenAI Chat Completions 兼容的 HTTPS 地址，且域名必须在代理允许列表中。更换为其他服务商域名时，还需通过 `ALLOWED_API_HOSTS` 显式允许。`BUILTIN_AI_ENABLED=true` 是显式上线开关；`BUILTIN_AI_ALLOWED_ORIGIN` 应填写最终访问站点的 Origin（只含协议和域名，不带路径）。设置后重新部署；若缺少任一必填变量，页面会明确提示“站点内置 AI 尚未配置”。
 
