@@ -4,7 +4,7 @@
 
 **Goal:** Let every AI analysis automatically use a Cloudflare-hosted default OpenAI-compatible API when the visitor has not saved a complete personal API configuration.
 
-**Architecture:** Keep the built-in endpoint, key, and model exclusively in Cloudflare environment variables. The browser represents fallback with a non-secret sentinel config and posts a `mode: "builtin"` request to the existing same-origin Pages Function; the Function replaces all client model/auth values with server values and enforces input/output limits. Complete personal configurations continue through the current allowlisted proxy unchanged.
+**Architecture:** Keep the built-in endpoint, key, and model exclusively in Cloudflare environment variables. The browser represents fallback with a non-secret sentinel config and posts a `mode: "builtin"` request to the existing same-origin Pages Function; the Function replaces all client model/auth values with server values and enforces input/output limits. Complete personal configurations continue through the same-origin proxy with public-HTTPS and private-target safeguards.
 
 **Tech Stack:** Vanilla JavaScript, Cloudflare Pages Functions, Node.js contract tests.
 

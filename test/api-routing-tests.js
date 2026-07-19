@@ -825,7 +825,7 @@ async function test(name, fn) {
         assert.doesNotMatch(readme, /Upload assets/);
     });
 
-    await test('Cloudflare proxy requires an explicit allowlist for custom APIs and blocks private targets', async () => {
+    await test('Cloudflare proxy accepts public HTTPS API domains without a manual allowlist', async () => {
         const source = fs.readFileSync(path.join(projectRoot, 'functions/api/proxy.js'), 'utf8');
         const proxyModule = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
         const originalFetch = global.fetch;
@@ -845,20 +845,21 @@ async function test(name, fn) {
         });
 
         try {
-            const blockedResponse = await proxyModule.onRequest({
+            const publicResponse = await proxyModule.onRequest({
                 request: makeRequest('https://llm.example.com/v1/models'),
                 env: {}
             });
-            assert.strictEqual(blockedResponse.status, 403);
-
-            const publicResponse = await proxyModule.onRequest({
-                request: makeRequest('https://llm.example.com/v1/models'),
-                env: { ALLOWED_API_HOSTS: 'llm.example.com' }
-            });
             assert.strictEqual(publicResponse.status, 200);
             assert.strictEqual(forwardedUrl, 'https://llm.example.com/v1/models');
+            assert.doesNotMatch(source, /ALLOWED_API_HOSTS/);
 
-            for (const privateUrl of ['https://localhost/v1/models', 'https://127.0.0.1/v1/models', 'https://10.0.0.8/v1/models']) {
+            for (const privateUrl of [
+                'https://localhost/v1/models',
+                'https://127.0.0.1/v1/models',
+                'https://10.0.0.8/v1/models',
+                'https://metadata.internal/v1/models',
+                'https://service.test/v1/models'
+            ]) {
                 const response = await proxyModule.onRequest({ request: makeRequest(privateUrl), env: {} });
                 assert.strictEqual(response.status, 403);
             }

@@ -1,11 +1,3 @@
-const DEFAULT_ALLOWED_HOSTS = [
-    'api.deepseek.com',
-    'api.openai.com',
-    'api.anthropic.com',
-    'dashscope.aliyuncs.com',
-    'open.bigmodel.cn'
-];
-
 const CORS_HEADERS = {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -30,15 +22,6 @@ function jsonResponse(data, status) {
     });
 }
 
-function getAllowedHosts(env) {
-    const configuredHosts = String(env.ALLOWED_API_HOSTS || '')
-        .split(',')
-        .map(host => host.trim().toLowerCase())
-        .filter(Boolean);
-
-    return new Set([...DEFAULT_ALLOWED_HOSTS, ...configuredHosts]);
-}
-
 function isPrivateOrLocalHost(hostname) {
     const host = String(hostname || '').toLowerCase().replace(/^\[|\]$/g, '');
     if (!host || host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')) return true;
@@ -58,9 +41,15 @@ function isPrivateOrLocalHost(hostname) {
         a >= 224;
 }
 
-function isAllowedTarget(targetUrl, env) {
+function isSafePublicTarget(targetUrl) {
     if (targetUrl.username || targetUrl.password || isPrivateOrLocalHost(targetUrl.hostname)) return false;
-    return getAllowedHosts(env).has(targetUrl.hostname.toLowerCase());
+    const hostname = targetUrl.hostname.toLowerCase();
+    return hostname !== 'internal' &&
+        !hostname.endsWith('.internal') &&
+        !hostname.endsWith('.intranet') &&
+        !hostname.endsWith('.home.arpa') &&
+        !hostname.endsWith('.test') &&
+        !hostname.endsWith('.invalid');
 }
 
 function positiveInteger(value, fallback, maximum) {
@@ -82,7 +71,7 @@ function getBuiltinConfig(env) {
         return null;
     }
 
-    if (targetUrl.protocol !== 'https:' || !isAllowedTarget(targetUrl, env)) return null;
+    if (targetUrl.protocol !== 'https:' || !isSafePublicTarget(targetUrl)) return null;
 
     return {
         targetUrl,
@@ -245,8 +234,8 @@ export async function onRequest({ request, env = {} }) {
             return jsonResponse({ error: '仅允许 HTTPS API 地址' }, 400);
         }
 
-        if (!isAllowedTarget(targetUrl, env)) {
-            return jsonResponse({ error: 'API 域名未授权；自定义域名需加入 ALLOWED_API_HOSTS' }, 403);
+        if (!isSafePublicTarget(targetUrl)) {
+            return jsonResponse({ error: 'API 地址必须使用 HTTPS，且不能指向本机、私网或内部域名' }, 403);
         }
 
         if (!['GET', 'POST'].includes(method)) {

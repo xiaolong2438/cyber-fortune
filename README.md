@@ -146,17 +146,11 @@ BUILTIN_AI_MIN_INTERVAL_SECONDS=1
 
 这组默认值允许每个 IP 每小时 120 次请求、请求间隔 1 秒，并支持较长的命理上下文和报告。若上游模型的输出上限低于 `12800`，请按该模型实际能力下调；高流量站点仍应结合 WAF 和费用告警控制成本。
 
-`BUILTIN_AI_API_URL` 必须是 OpenAI Chat Completions 兼容的 HTTPS 地址，且域名必须在代理允许列表中。更换为其他服务商域名时，还需通过 `ALLOWED_API_HOSTS` 显式允许。`BUILTIN_AI_ENABLED=true` 是显式上线开关；`BUILTIN_AI_ALLOWED_ORIGIN` 应填写最终访问站点的 Origin（只含协议和域名，不带路径）。设置后重新部署；若缺少任一必填变量，页面会明确提示“站点内置 AI 尚未配置”。
+`BUILTIN_AI_API_URL` 必须是 OpenAI Chat Completions 兼容的 HTTPS 地址。代理会自动接受公网 HTTPS API 域名，同时拒绝本机、私网和内部域名；不需要维护域名白名单。`BUILTIN_AI_ENABLED=true` 是显式上线开关；`BUILTIN_AI_ALLOWED_ORIGIN` 应填写最终访问站点的 Origin（只含协议和域名，不带路径）。设置后重新部署；若缺少任一必填变量，页面会明确提示“站点内置 AI 尚未配置”。
 
 **启用 `BUILTIN_AI_ENABLED` 前，必须先配置 `BUILTIN_AI_RATE_LIMIT_KV` 绑定，并在 Cloudflare 为 `/api/proxy` 配置 WAF 速率限制，同时开启 Bot 防护和费用告警。** KV 限流负责应用层的基础保护，但 KV 最终一致，不能替代 Cloudflare 边缘 WAF 的按 IP 限流。
 
-生产部署只使用 `functions/api/proxy.js` 这一 Cloudflare Pages Function 入口；旧的独立 Worker 代理已移除，避免绕过 HTTPS、域名白名单和私网地址检查。
-
-使用其他 OpenAI 兼容 API 时，请在 Cloudflare Pages 项目的环境变量中添加：
-
-```text
-ALLOWED_API_HOSTS=api.example.com,another-api.example.com
-```
+生产部署只使用 `functions/api/proxy.js` 这一 Cloudflare Pages Function 入口；旧的独立 Worker 代理已移除，避免绕过 HTTPS 和私网地址检查。
 
 只填写域名，不带 `https://`、端口或路径。部署后重新加载页面，再输入 API 地址、密钥并点击“加载模型”。本地静态服务器没有 Pages Function，只有服务商允许浏览器 CORS 时才能直接加载外部模型；完整联调请使用 Cloudflare Pages 本地开发环境或部署预览。
 
