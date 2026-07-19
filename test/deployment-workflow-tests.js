@@ -11,6 +11,7 @@ const workflow = fs.readFileSync(workflowPath, 'utf8');
 
 assert.match(workflow, /push:\s*\n\s*branches:\s*\[main\]/, 'main pushes must trigger deployment');
 assert.match(workflow, /workflow_dispatch:/, 'manual reruns must be supported');
+assert.match(workflow, /environment:\s*cloudflare/, 'the deploy job must use the cloudflare environment secrets');
 assert.match(workflow, /npm ci/);
 assert.match(workflow, /npm test/);
 assert.match(workflow, /npm run build:ziwei-chart/);

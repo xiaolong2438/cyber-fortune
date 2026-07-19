@@ -16,6 +16,7 @@ concurrency:
 jobs:
   test-build-deploy:
     runs-on: ubuntu-latest
+    environment: cloudflare
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -43,7 +44,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [[ -z "$CLOUDFLARE_API_TOKEN" || -z "$CLOUDFLARE_ACCOUNT_ID" ]]; then
-            echo "::error::Cloudflare credentials are missing. Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in repository Actions secrets."
+            echo "::error::Cloudflare credentials are missing. Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID to the cloudflare environment secrets."
             echo "### Cloudflare deployment blocked" >> "$GITHUB_STEP_SUMMARY"
             echo "Configure CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID, then rerun this workflow." >> "$GITHUB_STEP_SUMMARY"
             exit 1
