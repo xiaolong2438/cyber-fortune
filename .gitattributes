@@ -1,0 +1,7 @@
+# 行尾归一化：避免 Windows autocrlf 与 Linux CI 检出内容不一致导致构建指纹失配
+*.js text eol=lf
+*.jsx text eol=lf
+*.mjs text eol=lf
+*.css text eol=lf
+*.json text eol=lf
+*.html text eol=lf
