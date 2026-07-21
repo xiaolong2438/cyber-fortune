@@ -170,6 +170,87 @@ async function test(name, fn) {
         assert.deepStrictEqual(events, ['preview']);
     });
 
+    await test('print preview registers before document close and invokes print', () => {
+        const events = [];
+        const popup = {
+            document: {
+                readyState: 'loading',
+                open() {
+                    events.push('open');
+                    popup.onload = null;
+                },
+                write(html) { events.push(`write:${html}`); },
+                close() {
+                    events.push('close');
+                    popup.onload?.();
+                }
+            },
+            print() { events.push('print'); }
+        };
+        const { CyberFortune } = loadCyberFortune({
+            setTimeout(callback) { callback(); }
+        });
+        const instance = Object.create(CyberFortune.prototype);
+        instance.generatePrintableHTML = () => '<html></html>';
+        instance.showSuccess = () => {};
+
+        instance.openPrintPreview(popup);
+
+        assert.deepStrictEqual(events, ['open', 'write:<html></html>', 'close', 'print']);
+    });
+
+    await test('all deferred report exports open their popup during the user action', () => {
+        const cases = [
+            {
+                download: 'downloadNamingPDFReport',
+                preview: 'openNamingPrintPreview',
+                selector: '#qiming-result .result-content',
+                args: [{}, {}, []]
+            },
+            {
+                download: 'downloadCemingPDFReport',
+                preview: 'openCemingPrintPreview',
+                selector: '#ceming-result .result-content',
+                args: [{}, {}, {}]
+            },
+            {
+                download: 'downloadMarriagePDFReport',
+                preview: 'openMarriagePrintPreview',
+                selector: '#hehun-result .result-content',
+                args: [{}, {}]
+            }
+        ];
+
+        cases.forEach(({ download, preview, selector, args }) => {
+            const events = [];
+            const popup = { document: {} };
+            const { CyberFortune, context } = loadCyberFortune({
+                setTimeout(callback) {
+                    events.push('deferred');
+                    callback();
+                }
+            });
+            context.document.querySelector = (query) => query === selector ? {} : null;
+            context.window.open = () => {
+                events.push('popup');
+                return popup;
+            };
+            const instance = Object.create(CyberFortune.prototype);
+            instance.showProcessing = () => {};
+            instance.hideProcessing = () => {};
+            instance.showError = (message) => { throw new Error(message); };
+            instance[preview] = (...previewArgs) => {
+                events.push('preview');
+                assert.strictEqual(previewArgs.at(-1), popup);
+            };
+
+            instance[download](...args);
+
+            assert.strictEqual(events[0], 'popup', `${download} must open the popup synchronously`);
+            assert.ok(events.includes('preview'), `${download} must render the preview`);
+        });
+    });
+
     if (failures.length > 0) {
         console.error(`\n${failures.length} PDF report test(s) failed.`);
         process.exit(1);

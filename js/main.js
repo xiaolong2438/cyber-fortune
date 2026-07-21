@@ -4205,23 +4205,38 @@ class CyberFortune {
     }
 
     // 打开打印预览（PDF生成失败时的备选方案）
+    writePrintWindow(printWindow, reportHTML) {
+        if (!printWindow) {
+            this.showError('报告窗口不可用，请允许弹出窗口后重试');
+            return false;
+        }
+
+        let printScheduled = false;
+        const triggerPrint = () => {
+            if (printScheduled) return;
+            printScheduled = true;
+            setTimeout(() => {
+                if (printWindow.closed) return;
+                printWindow.focus?.();
+                printWindow.print();
+            }, 1000);
+        };
+
+        printWindow.document.open?.();
+        printWindow.onload = triggerPrint;
+        printWindow.document.write(reportHTML);
+        printWindow.document.close();
+        if (printWindow.document.readyState === 'complete') triggerPrint();
+        return true;
+    }
+
     openPrintPreview(printWindow, options = {}) {
         if (!printWindow) {
             this.showError('报告窗口不可用，请允许弹出窗口后重试');
             return;
         }
         const reportHTML = this.generatePrintableHTML(options);
-
-        printWindow.document.open?.();
-        printWindow.document.write(reportHTML);
-        printWindow.document.close();
-
-        // 等待内容加载完成后打开打印对话框
-        printWindow.onload = function() {
-            setTimeout(() => {
-                printWindow.print();
-            }, 1000);
-        };
+        if (!this.writePrintWindow(printWindow, reportHTML)) return;
 
         this.showSuccess('已打开打印预览，您可以选择"另存为PDF"保存');
     }
@@ -6456,11 +6471,17 @@ class CyberFortune {
             return;
         }
 
+        const printWindow = window.open('', '_blank', 'width=800,height=600');
+        if (!printWindow) {
+            this.showError('报告窗口被浏览器拦截，请允许弹出窗口后重试');
+            return;
+        }
+
         this.showProcessing('正在准备PDF报告...');
 
         setTimeout(() => {
             this.hideProcessing();
-            this.openNamingPrintPreview(birthData, baziResult, nameSuggestions);
+            this.openNamingPrintPreview(birthData, baziResult, nameSuggestions, printWindow);
         }, 500);
     }
 
@@ -6560,18 +6581,11 @@ class CyberFortune {
     }
 
     // 打开起名打印预览
-    openNamingPrintPreview(birthData, baziResult, nameSuggestions) {
+    openNamingPrintPreview(birthData, baziResult, nameSuggestions, printWindow = null) {
         const reportHTML = this.generateNamingPrintableHTML(birthData, baziResult, nameSuggestions);
 
-        const printWindow = window.open('', '_blank', 'width=800,height=600');
-        printWindow.document.write(reportHTML);
-        printWindow.document.close();
-
-        printWindow.onload = function() {
-            setTimeout(() => {
-                printWindow.print();
-            }, 1000);
-        };
+        printWindow ||= window.open('', '_blank', 'width=800,height=600');
+        if (!this.writePrintWindow(printWindow, reportHTML)) return;
 
         this.showSuccess('已打开打印预览，您可以选择"另存为PDF"保存');
     }
@@ -6868,11 +6882,17 @@ class CyberFortune {
             return;
         }
 
+        const printWindow = window.open('', '_blank', 'width=800,height=600');
+        if (!printWindow) {
+            this.showError('报告窗口被浏览器拦截，请允许弹出窗口后重试');
+            return;
+        }
+
         this.showProcessing('正在准备PDF报告...');
 
         setTimeout(() => {
             this.hideProcessing();
-            this.openCemingPrintPreview(testData, nameAnalysis, baziResult);
+            this.openCemingPrintPreview(testData, nameAnalysis, baziResult, printWindow);
         }, 500);
     }
 
@@ -6964,18 +6984,11 @@ class CyberFortune {
     }
 
     // 打开测名打印预览
-    openCemingPrintPreview(testData, nameAnalysis, baziResult) {
+    openCemingPrintPreview(testData, nameAnalysis, baziResult, printWindow = null) {
         const reportHTML = this.generateCemingPrintableHTML(testData, nameAnalysis, baziResult);
 
-        const printWindow = window.open('', '_blank', 'width=800,height=600');
-        printWindow.document.write(reportHTML);
-        printWindow.document.close();
-
-        printWindow.onload = function() {
-            setTimeout(() => {
-                printWindow.print();
-            }, 1000);
-        };
+        printWindow ||= window.open('', '_blank', 'width=800,height=600');
+        if (!this.writePrintWindow(printWindow, reportHTML)) return;
 
         this.showSuccess('已打开打印预览，您可以选择"另存为PDF"保存');
     }
@@ -7263,11 +7276,17 @@ class CyberFortune {
             return;
         }
 
+        const printWindow = window.open('', '_blank', 'width=800,height=600');
+        if (!printWindow) {
+            this.showError('报告窗口被浏览器拦截，请允许弹出窗口后重试');
+            return;
+        }
+
         this.showProcessing('正在准备PDF报告...');
 
         setTimeout(() => {
             this.hideProcessing();
-            this.openMarriagePrintPreview(marriageData, marriageResult);
+            this.openMarriagePrintPreview(marriageData, marriageResult, printWindow);
         }, 500);
     }
 
@@ -7354,18 +7373,11 @@ class CyberFortune {
     }
 
     // 打开合婚打印预览
-    openMarriagePrintPreview(marriageData, marriageResult) {
+    openMarriagePrintPreview(marriageData, marriageResult, printWindow = null) {
         const reportHTML = this.generateMarriagePrintableHTML(marriageData, marriageResult);
 
-        const printWindow = window.open('', '_blank', 'width=800,height=600');
-        printWindow.document.write(reportHTML);
-        printWindow.document.close();
-
-        printWindow.onload = function() {
-            setTimeout(() => {
-                printWindow.print();
-            }, 1000);
-        };
+        printWindow ||= window.open('', '_blank', 'width=800,height=600');
+        if (!this.writePrintWindow(printWindow, reportHTML)) return;
 
         this.showSuccess('已打开打印预览，您可以选择"另存为PDF"保存');
     }
