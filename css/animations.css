@@ -1,320 +1,156 @@
-/* 赛博论命 - 动画效果文件 */
+/* 赛博论命 · 玄夜鎏金 —— 动画效果 */
 
-/* 全局动画变量 */
 :root {
-    --animation-speed: 0.3s;
-    --glow-animation: glow 2s ease-in-out infinite alternate;
+    --animation-speed: 0.32s;
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* 发光动画 */
+/* 金色呼吸光晕 */
 @keyframes glow {
     from {
-        text-shadow: 0 0 10px var(--glow-color), 0 0 20px var(--glow-color), 0 0 30px var(--glow-color);
+        text-shadow: 0 0 12px rgba(216, 180, 106, 0.25), 0 0 28px rgba(216, 180, 106, 0.12);
     }
     to {
-        text-shadow: 0 0 20px var(--glow-color), 0 0 30px var(--glow-color), 0 0 40px var(--glow-color);
+        text-shadow: 0 0 22px rgba(216, 180, 106, 0.45), 0 0 48px rgba(216, 180, 106, 0.2);
     }
 }
 
-/* 脉冲动画 */
 @keyframes pulse {
-    0% {
-        transform: scale(1);
-        opacity: 1;
-    }
-    50% {
-        transform: scale(1.05);
-        opacity: 0.8;
-    }
-    100% {
-        transform: scale(1);
-        opacity: 1;
-    }
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.04); opacity: 0.85; }
+    100% { transform: scale(1); opacity: 1; }
 }
 
-/* 滑入动画 */
 @keyframes slideInFromLeft {
-    0% {
-        transform: translateX(-100%);
-        opacity: 0;
-    }
-    100% {
-        transform: translateX(0);
-        opacity: 1;
-    }
+    0% { transform: translateX(-24px); opacity: 0; }
+    100% { transform: translateX(0); opacity: 1; }
 }
 
 @keyframes slideInFromRight {
-    0% {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-    100% {
-        transform: translateX(0);
-        opacity: 1;
-    }
+    0% { transform: translateX(24px); opacity: 0; }
+    100% { transform: translateX(0); opacity: 1; }
 }
 
 @keyframes slideInFromTop {
-    0% {
-        transform: translateY(-100%);
-        opacity: 0;
-    }
-    100% {
-        transform: translateY(0);
-        opacity: 1;
-    }
+    0% { transform: translateY(-14px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
 }
 
 @keyframes slideInFromBottom {
-    0% {
-        transform: translateY(100%);
-        opacity: 0;
-    }
-    100% {
-        transform: translateY(0);
-        opacity: 1;
-    }
+    0% { transform: translateY(14px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
 }
 
-/* 淡入动画 */
 @keyframes fadeIn {
-    0% {
-        opacity: 0;
-    }
-    100% {
-        opacity: 1;
-    }
+    0% { opacity: 0; }
+    100% { opacity: 1; }
 }
 
 @keyframes fadeInUp {
-    0% {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-    100% {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    0% { opacity: 0; transform: translateY(22px); }
+    100% { opacity: 1; transform: translateY(0); }
 }
 
-/* 缩放动画 */
 @keyframes scaleIn {
-    0% {
-        transform: scale(0);
-        opacity: 0;
-    }
-    100% {
-        transform: scale(1);
-        opacity: 1;
-    }
+    0% { transform: scale(0.92); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
 }
 
-/* 旋转动画 */
 @keyframes rotate {
-    0% {
-        transform: rotate(0deg);
-    }
-    100% {
-        transform: rotate(360deg);
-    }
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
-/* 数据流动画 */
-@keyframes dataFlow {
-    0% {
-        transform: translateX(-100%);
-    }
-    100% {
-        transform: translateX(100vw);
-    }
-}
-
-/* 矩阵雨效果 */
-@keyframes matrixRain {
-    0% {
-        transform: translateY(-100vh);
-        opacity: 1;
-    }
-    100% {
-        transform: translateY(100vh);
-        opacity: 0;
-    }
-}
-
-/* 霓虹灯效果 */
 @keyframes neonGlow {
     0%, 100% {
-        text-shadow: 
-            0 0 5px var(--primary-color),
-            0 0 10px var(--primary-color),
-            0 0 15px var(--primary-color),
-            0 0 20px var(--primary-color);
+        filter: drop-shadow(0 4px 18px rgba(216, 180, 106, 0.14));
     }
     50% {
-        text-shadow: 
-            0 0 2px var(--primary-color),
-            0 0 5px var(--primary-color),
-            0 0 8px var(--primary-color),
-            0 0 12px var(--primary-color);
+        filter: drop-shadow(0 6px 30px rgba(216, 180, 106, 0.3));
     }
 }
 
-/* 扫描线效果 */
-@keyframes scanLine {
-    0% {
-        transform: translateY(-100%);
-    }
-    100% {
-        transform: translateY(100vh);
-    }
-}
+/* 应用类 */
+.animate-glow { animation: glow 2.6s ease-in-out infinite alternate; }
+.animate-pulse { animation: pulse 2s infinite; }
+.animate-slide-in-left { animation: slideInFromLeft var(--animation-speed) var(--ease-out); }
+.animate-slide-in-right { animation: slideInFromRight var(--animation-speed) var(--ease-out); }
+.animate-slide-in-top { animation: slideInFromTop var(--animation-speed) var(--ease-out); }
+.animate-slide-in-bottom { animation: slideInFromBottom var(--animation-speed) var(--ease-out); }
+.animate-fade-in { animation: fadeIn var(--animation-speed) var(--ease-out); }
+.animate-fade-in-up { animation: fadeInUp var(--animation-speed) var(--ease-out); }
+.animate-scale-in { animation: scaleIn var(--animation-speed) var(--ease-out); }
+.animate-neon { animation: neonGlow 3.2s ease-in-out infinite; }
 
-/* 应用动画的类 */
-.animate-glow {
-    animation: var(--glow-animation);
-}
-
-.animate-pulse {
-    animation: pulse 2s infinite;
-}
-
-.animate-slide-in-left {
-    animation: slideInFromLeft var(--animation-speed) ease-out;
-}
-
-.animate-slide-in-right {
-    animation: slideInFromRight var(--animation-speed) ease-out;
-}
-
-.animate-slide-in-top {
-    animation: slideInFromTop var(--animation-speed) ease-out;
-}
-
-.animate-slide-in-bottom {
-    animation: slideInFromBottom var(--animation-speed) ease-out;
-}
-
-.animate-fade-in {
-    animation: fadeIn var(--animation-speed) ease-out;
-}
-
-.animate-fade-in-up {
-    animation: fadeInUp var(--animation-speed) ease-out;
-}
-
-.animate-scale-in {
-    animation: scaleIn var(--animation-speed) ease-out;
-}
-
-.animate-neon {
-    animation: neonGlow 2s ease-in-out infinite;
-}
-
-/* 页面切换动画 */
+/* 页面切换 */
 .section-enter {
-    animation: fadeInUp 0.5s ease-out;
+    animation: fadeInUp 0.45s var(--ease-out);
 }
 
 .section-exit {
-    animation: fadeIn 0.3s ease-out reverse;
+    animation: fadeIn 0.25s var(--ease-out) reverse;
 }
 
-/* 表单元素动画 */
+/* 表单元素渐次入场 */
 .form-group {
     opacity: 0;
-    animation: fadeInUp 0.6s ease-out forwards;
+    animation: fadeInUp 0.55s var(--ease-out) forwards;
 }
 
-.form-group:nth-child(1) { animation-delay: 0.1s; }
-.form-group:nth-child(2) { animation-delay: 0.2s; }
-.form-group:nth-child(3) { animation-delay: 0.3s; }
-.form-group:nth-child(4) { animation-delay: 0.4s; }
-.form-group:nth-child(5) { animation-delay: 0.5s; }
+.form-group:nth-child(1) { animation-delay: 0.08s; }
+.form-group:nth-child(2) { animation-delay: 0.16s; }
+.form-group:nth-child(3) { animation-delay: 0.24s; }
+.form-group:nth-child(4) { animation-delay: 0.32s; }
+.form-group:nth-child(5) { animation-delay: 0.4s; }
 
-/* 特色卡片动画 */
+/* 特色卡片渐次入场 */
 .feature-card {
     opacity: 0;
-    animation: scaleIn 0.6s ease-out forwards;
+    animation: scaleIn 0.55s var(--ease-out) forwards;
 }
 
 .feature-card:nth-child(1) { animation-delay: 0.1s; }
-.feature-card:nth-child(2) { animation-delay: 0.2s; }
-.feature-card:nth-child(3) { animation-delay: 0.3s; }
-.feature-card:nth-child(4) { animation-delay: 0.4s; }
+.feature-card:nth-child(2) { animation-delay: 0.18s; }
+.feature-card:nth-child(3) { animation-delay: 0.26s; }
+.feature-card:nth-child(4) { animation-delay: 0.34s; }
 
-/* 导航项动画 */
+/* 导航项入场 */
 .nav-item {
     opacity: 0;
-    animation: slideInFromTop 0.5s ease-out forwards;
+    animation: slideInFromTop 0.45s var(--ease-out) forwards;
 }
 
-.nav-item:nth-child(1) { animation-delay: 0.1s; }
-.nav-item:nth-child(2) { animation-delay: 0.2s; }
-.nav-item:nth-child(3) { animation-delay: 0.3s; }
-.nav-item:nth-child(4) { animation-delay: 0.4s; }
-.nav-item:nth-child(5) { animation-delay: 0.5s; }
+.nav-item:nth-child(1) { animation-delay: 0.08s; }
+.nav-item:nth-child(2) { animation-delay: 0.15s; }
+.nav-item:nth-child(3) { animation-delay: 0.22s; }
+.nav-item:nth-child(4) { animation-delay: 0.29s; }
+.nav-item:nth-child(5) { animation-delay: 0.36s; }
 
-/* 标题动画 */
+/* 英雄区标题 */
 .hero-title {
     opacity: 0;
-    animation: fadeInUp 1s ease-out forwards;
+    animation: fadeInUp 0.9s var(--ease-out) forwards;
+}
+
+.hero-kicker {
+    opacity: 0;
+    animation: fadeIn 0.8s var(--ease-out) 0.1s forwards;
 }
 
 .title-main {
-    animation: neonGlow 3s ease-in-out infinite;
+    animation: neonGlow 4s ease-in-out 1s infinite;
 }
 
 .hero-description {
     opacity: 0;
-    animation: fadeInUp 1s ease-out 0.5s forwards;
+    animation: fadeInUp 0.9s var(--ease-out) 0.4s forwards;
 }
 
-/* 按钮悬停动画 */
-.cyber-button {
-    position: relative;
-    overflow: hidden;
-}
-
-.cyber-button::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-    transition: left 0.5s ease;
-}
-
-.cyber-button:hover::before {
-    left: 100%;
-}
-
-/* 加载动画增强 */
-.cyber-loader {
-    position: relative;
-}
-
-.cyber-loader::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 40px;
-    height: 40px;
-    border: 2px solid transparent;
-    border-top: 2px solid var(--accent-color);
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-    animation: rotate 0.8s linear infinite reverse;
-}
-
-/* 结果显示动画 */
+/* 结果显示 */
 .result-panel {
     opacity: 0;
-    transform: translateY(20px);
-    transition: all 0.5s ease-out;
+    transform: translateY(18px);
+    transition: opacity 0.5s var(--ease-out), transform 0.5s var(--ease-out);
 }
 
 .result-panel.show {
@@ -322,38 +158,15 @@
     transform: translateY(0);
 }
 
-/* 数据流效果 */
-.data-stream {
-    position: absolute;
-    width: 2px;
-    height: 20px;
-    background: linear-gradient(to bottom, transparent, var(--primary-color), transparent);
-    animation: dataFlow 3s linear infinite;
-}
-
-/* 扫描线效果 */
-.scan-line {
-    position: absolute;
-    width: 100%;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
-    animation: scanLine 4s linear infinite;
-    opacity: 0.5;
-}
-
-/* 响应式动画调整 */
+/* 响应式：移动端减少位移动画 */
 @media (max-width: 768px) {
     .animate-slide-in-left,
     .animate-slide-in-right {
-        animation: fadeInUp var(--animation-speed) ease-out;
-    }
-    
-    .title-main {
-        animation: neonGlow 2s ease-in-out infinite;
+        animation: fadeInUp var(--animation-speed) var(--ease-out);
     }
 }
 
-/* 减少动画的媒体查询 */
+/* 减少动态偏好 */
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -361,5 +174,14 @@
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
+    }
+
+    .form-group,
+    .feature-card,
+    .nav-item,
+    .hero-title,
+    .hero-kicker,
+    .hero-description {
+        opacity: 1;
     }
 }

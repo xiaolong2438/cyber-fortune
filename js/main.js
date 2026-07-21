@@ -752,7 +752,7 @@ class CyberFortune {
                     <div class="ai-output" id="ai-output"></div>
                     <div class="result-actions">
                         <button class="cyber-button" id="copy-ai-result" style="display: none;">
-                            <span>📄 复制分析结果</span>
+                            <span>复制分析结果</span>
                             <div class="button-glow"></div>
                         </button>
                     </div>
@@ -767,20 +767,20 @@ class CyberFortune {
             <div class="result-actions">
                 <div class="download-options">
                     <button class="cyber-button" id="download-pdf-btn">
-                        <span>📄 生成PDF报告</span>
+                        <span>生成 PDF 报告</span>
                         <div class="button-glow"></div>
                     </button>
                     <button class="cyber-button secondary" id="download-text-btn">
-                        <span>📝 下载文本报告</span>
+                        <span>下载文本报告</span>
                         <div class="button-glow"></div>
                     </button>
-                    <button class="cyber-button" id="test-canvas-btn" style="background: linear-gradient(45deg, #ff6b6b, #ff8e8e);">
-                        <span>🧪 测试Canvas</span>
+                    <button class="cyber-button" id="test-canvas-btn" style="background: linear-gradient(135deg, #8a4a44, #6d3a36);">
+                        <span>测试 Canvas</span>
                         <div class="button-glow"></div>
                     </button>
                 </div>
                 <div class="download-note">
-                    <small>💡 PDF报告将在新窗口中打开，您可以使用浏览器的"打印"功能保存为PDF</small>
+                    <small>提示：PDF 报告将在新窗口中打开，您可以使用浏览器的"打印"功能保存为 PDF</small>
                 </div>
             </div>
         `;
@@ -1620,7 +1620,7 @@ class CyberFortune {
                     <div class="ai-output" id="ai-naming-output"></div>
                     <div class="result-actions">
                         <button class="cyber-button" id="copy-ai-naming-result" style="display: none;">
-                            <span>📄 复制分析结果</span>
+                            <span>复制分析结果</span>
                             <div class="button-glow"></div>
                         </button>
                     </div>
@@ -1636,16 +1636,16 @@ class CyberFortune {
             <div class="result-actions">
                 <div class="download-options">
                     <button class="cyber-button" id="download-naming-pdf-btn" disabled aria-disabled="true">
-                        <span>📄 生成PDF报告</span>
+                        <span>生成 PDF 报告</span>
                         <div class="button-glow"></div>
                     </button>
                     <button class="cyber-button secondary" id="download-naming-text-btn" disabled aria-disabled="true">
-                        <span>📝 下载文本报告</span>
+                        <span>下载文本报告</span>
                         <div class="button-glow"></div>
                     </button>
                 </div>
                 <div class="download-note">
-                    <small>💡 PDF报告将在新窗口中打开，您可以使用浏览器的"打印"功能保存为PDF</small>
+                    <small>提示：PDF 报告将在新窗口中打开，您可以使用浏览器的"打印"功能保存为 PDF</small>
                 </div>
             </div>
         `;
@@ -2374,11 +2374,11 @@ class CyberFortune {
             if (output) {
                 output.innerHTML = `
                     <div class="config-prompt">
-                        <div class="config-prompt-icon">⚙️</div>
+                        <div class="config-prompt-icon"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"></circle><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7"></path></svg></div>
                         <h4>需要配置AI设置</h4>
                         <p>要使用AI智能起名分析功能，请先配置AI设置：</p>
                         <ol>
-                            <li>点击右上角的 <strong>⚙️ AI设置</strong> 按钮</li>
+                            <li>点击右上角的 <strong>AI 配置</strong> 按钮</li>
                             <li>输入模型 ID，或先从服务商加载模型列表</li>
                             <li>输入API密钥和API地址</li>
                             <li>点击"测试连接"确认配置正确</li>
@@ -2388,7 +2388,7 @@ class CyberFortune {
                             💡 <strong>提示</strong>：本地开发环境和线上环境的配置是独立的，需要分别设置。
                         </div>
                         <button class="cyber-button config-prompt-button" onclick="document.getElementById('config-toggle').click()">
-                            🚀 立即配置AI设置
+                            立即配置 AI 设置
                         </button>
                     </div>
                 `;
@@ -2611,7 +2611,7 @@ class CyberFortune {
                     <div class="ai-output" id="ceming-ai-output"></div>
                     <div class="result-actions">
                         <button class="cyber-button" id="copy-ceming-ai-result" style="display: none;">
-                            <span>📄 复制分析结果</span>
+                            <span>复制分析结果</span>
                             <div class="button-glow"></div>
                         </button>
                     </div>
@@ -2627,16 +2627,16 @@ class CyberFortune {
             <div class="result-actions">
                 <div class="download-options">
                     <button class="cyber-button" id="download-ceming-pdf-btn">
-                        <span>📄 生成PDF报告</span>
+                        <span>生成 PDF 报告</span>
                         <div class="button-glow"></div>
                     </button>
                     <button class="cyber-button secondary" id="download-ceming-text-btn">
-                        <span>📝 下载文本报告</span>
+                        <span>下载文本报告</span>
                         <div class="button-glow"></div>
                     </button>
                 </div>
                 <div class="download-note">
-                    <small>💡 PDF报告将在新窗口中打开，您可以使用浏览器的"打印"功能保存为PDF</small>
+                    <small>提示：PDF 报告将在新窗口中打开，您可以使用浏览器的"打印"功能保存为 PDF</small>
                 </div>
             </div>
         `;
@@ -3320,7 +3320,7 @@ class CyberFortune {
                         <div class="ai-marriage-output" id="ai-marriage-output"></div>
                         <div class="result-actions">
                             <button class="cyber-button" id="copy-ai-marriage-result" style="display: none;">
-                                <span>📄 复制分析结果</span>
+                                <span>复制分析结果</span>
                                 <div class="button-glow"></div>
                             </button>
                         </div>
@@ -3333,16 +3333,16 @@ class CyberFortune {
                 <div class="result-actions">
                     <div class="download-options">
                         <button class="cyber-button" id="download-marriage-pdf-btn">
-                            <span>📄 生成PDF报告</span>
+                            <span>生成 PDF 报告</span>
                             <div class="button-glow"></div>
                         </button>
                         <button class="cyber-button secondary" id="download-marriage-text-btn">
-                            <span>📝 下载文本报告</span>
+                            <span>下载文本报告</span>
                             <div class="button-glow"></div>
                         </button>
                     </div>
                     <div class="download-note">
-                        <small>💡 PDF报告将在新窗口中打开，您可以使用浏览器的"打印"功能保存为PDF</small>
+                        <small>提示：PDF 报告将在新窗口中打开，您可以使用浏览器的"打印"功能保存为 PDF</small>
                     </div>
                 </div>
             </div>
@@ -3535,9 +3535,10 @@ class CyberFortune {
             position: fixed;
             top: 20px;
             right: 20px;
-            background: linear-gradient(45deg, #00d4ff, #00ff88);
-            color: white;
-            padding: 1rem 2rem;
+            background: linear-gradient(135deg, #1a1f2b, #12151d);
+            border: 1px solid rgba(216, 180, 106, 0.45);
+            color: #edeae0;
+            padding: 1rem 1.6rem;
             border-radius: 4px;
             z-index: 10000;
             animation: slideInFromRight 0.3s ease-out;
@@ -3565,9 +3566,10 @@ class CyberFortune {
             position: fixed;
             top: 20px;
             right: 20px;
-            background: linear-gradient(45deg, #ff4444, #ff6666);
-            color: white;
-            padding: 1rem 2rem;
+            background: linear-gradient(135deg, #1a1f2b, #12151d);
+            border: 1px solid rgba(217, 117, 107, 0.5);
+            color: #f0c5be;
+            padding: 1rem 1.6rem;
             border-radius: 4px;
             z-index: 10000;
             animation: slideInFromRight 0.3s ease-out;
