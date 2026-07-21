@@ -10,7 +10,8 @@ const fingerprintFiles = [
 ];
 const buildHash = createHash('sha256');
 for (const file of fingerprintFiles) {
-    buildHash.update(file).update(await readFile(file));
+    const source = await readFile(file, 'utf8');
+    buildHash.update(file).update(source.replace(/\r\n?/g, '\n'));
 }
 const fingerprint = buildHash.digest('hex');
 const outputFile = 'js/vendor/react-iztro-chart.js';

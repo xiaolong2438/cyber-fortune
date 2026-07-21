@@ -156,7 +156,10 @@ function assertBuiltArtifactIsCurrent() {
         'package-lock.json'
     ];
     const buildHash = crypto.createHash('sha256');
-    fingerprintFiles.forEach((file) => buildHash.update(file).update(fs.readFileSync(path.join(rootDir, file))));
+    fingerprintFiles.forEach((file) => {
+        const normalized = fs.readFileSync(path.join(rootDir, file), 'utf8').replace(/\r\n?/g, '\n');
+        buildHash.update(file).update(normalized);
+    });
     const fingerprint = buildHash.digest('hex');
     const bundle = fs.readFileSync(path.join(rootDir, 'js/vendor/react-iztro-chart.js'), 'utf8');
     const styles = fs.readFileSync(path.join(rootDir, 'js/vendor/react-iztro-chart.css'), 'utf8');
