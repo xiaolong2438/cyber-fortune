@@ -1969,6 +1969,36 @@ select option {
     font-style: normal;
 }
 
+.oracle-poem {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem 2rem;
+    margin: 1.25rem auto;
+    padding: 1.25rem 1.5rem;
+    max-width: 48rem;
+    border: 1px solid var(--border-gold-soft);
+    border-radius: var(--radius-sm);
+    background: rgba(216, 180, 106, 0.05);
+}
+
+.oracle-poem-line {
+    min-width: 0;
+    text-align: center;
+    font-family: var(--font-primary);
+    font-size: 1.05rem;
+    line-height: 1.9;
+    letter-spacing: 0.08em;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+    .oracle-poem {
+        grid-template-columns: 1fr;
+        gap: 0.35rem;
+        padding: 1rem;
+    }
+}
+
 .api-error-message,
 .ai-error-message,
 .ai-naming-error-message {
@@ -4432,7 +4462,7 @@ select option {
 
     .section {
         min-height: calc(100vh - 60px);
-        padding: 1.4rem 0.9rem 2.5rem;
+        padding: 1.4rem 0.5rem 2.5rem;
     }
 
     .hero-section { min-height: calc(100vh - 60px); }
@@ -4448,6 +4478,7 @@ select option {
     .cyber-form { gap: 1.1rem; }
 
     .content-container {
+        width: 100%;
         grid-template-columns: 1fr;
         gap: 2rem;
     }
@@ -4795,11 +4826,21 @@ select option {
 }
 
 @media (max-width: 560px) {
-    #qiming-result,
-    #ceming-result,
-    #hehun-result {
-        padding: 0.9rem;
+    .result-panel {
+        padding: 0.75rem;
         border-radius: var(--radius-md);
+    }
+
+    #qiming-result .ai-result-section,
+    #ceming-result .ai-result-section,
+    #hehun-result .ai-marriage-result-section {
+        padding: 0.75rem;
+    }
+
+    #qiming-result .ai-output,
+    #ceming-result .ai-output,
+    #hehun-result .ai-marriage-output {
+        padding: 0.75rem;
     }
 
     #qiming-result .result-content,

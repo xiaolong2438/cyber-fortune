@@ -69,6 +69,19 @@ function testNamingControls() {
         'dynamic province options should be idempotent');
 }
 
+function testMobileContentWidthContract() {
+    assert.match(css, /@media \(max-width: 768px\)[\s\S]*?\.section\s*\{[\s\S]*?padding:\s*1\.4rem 0\.5rem 2\.5rem;/,
+        'mobile sections should keep compact page gutters');
+    assert.match(css, /@media \(max-width: 768px\)[\s\S]*?\.content-container\s*\{[\s\S]*?width:\s*100%;/,
+        'mobile content container should use the available width');
+    assert.match(css, /@media \(max-width: 560px\)[\s\S]*?\.result-panel\s*\{[\s\S]*?padding:\s*0\.75rem;/,
+        'mobile result cards should use compact padding');
+    assert.match(css, /@media \(max-width: 560px\)[\s\S]*?#qiming-result \.ai-result-section,[\s\S]*?padding:\s*0\.75rem;/,
+        'mobile AI sections should not add excessive horizontal padding');
+    assert.match(css, /@media \(max-width: 560px\)[\s\S]*?#qiming-result \.ai-output,[\s\S]*?padding:\s*0\.75rem;/,
+        'mobile AI output should preserve readable width');
+}
+
 function createStorage() {
     const values = new Map();
     return {
@@ -127,6 +140,7 @@ function testProfilePrivacyContract() {
 try {
     testMarkupContract();
     testNamingControls();
+    testMobileContentWidthContract();
     testProfilePrivacyContract();
     console.log('✓ usability UI and privacy tests passed');
 } catch (error) {

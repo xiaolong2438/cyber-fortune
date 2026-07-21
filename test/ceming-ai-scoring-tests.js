@@ -6,6 +6,7 @@ const vm = require('vm');
 const root = path.resolve(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'js/main.js'), 'utf8');
 const nameCalculatorSource = fs.readFileSync(path.join(root, 'js/name-calculator.js'), 'utf8');
+const baziCalculatorSource = fs.readFileSync(path.join(root, 'js/bazi-calculator.js'), 'utf8');
 const indexHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const context = {
     window: { addEventListener() {} },
@@ -138,6 +139,25 @@ test('AI Markdown rendering is sanitized by a local DOMPurify loaded before main
     assert.match(source, /DOMPurify\.sanitize/);
     assert.match(source, /renderAIMarkdown\(fullResponse\)/);
     assert.doesNotMatch(source, /innerHTML\s*=\s*marked\.parse/);
+});
+
+test('aligned oracle poems are converted into paired verses instead of literal LaTeX', () => {
+    const instance = Object.create(CyberFortune.prototype);
+    const latexPoem = String.raw`$$ \begin{aligned}
+\text{帝星申宫坐紫府}， & \quad \text{三丙高透气凌云。} \\
+\text{庚金建禄经淬炼}， & \quad \text{子午相冲孕乾坤。} \\
+\text{早年收敛磨锋芒}， & \quad \text{中年水泛吐英华。} \\
+\text{乘风破浪展宏图}， & \quad \text{名利双收耀门庭。}
+\end{aligned} $$`;
+
+    const normalized = instance.normalizeOraclePoem(latexPoem);
+
+    assert.match(normalized, /class="oracle-poem"/);
+    assert.strictEqual((normalized.match(/class="oracle-poem-line"/g) || []).length, 8);
+    assert.match(normalized, /帝星申宫坐紫府/);
+    assert.match(normalized, /名利双收耀门庭/);
+    assert.doesNotMatch(normalized, /\$\$|\\begin|\\text|\\quad|aligned/);
+    assert.match(baziCalculatorSource, /严禁输出任何 LaTeX/);
 });
 
 if (failures.length) process.exit(1);

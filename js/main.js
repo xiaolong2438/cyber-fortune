@@ -3224,10 +3224,34 @@ class CyberFortune {
 
     renderAIMarkdown(text) {
         if (!text) return '';
+        const normalizedText = this.normalizeOraclePoem(text);
         const rawHTML = typeof marked !== 'undefined'
-            ? marked.parse(text)
-            : this.simpleMarkdownParse(text);
+            ? marked.parse(normalizedText)
+            : this.simpleMarkdownParse(normalizedText);
         return this.sanitizeAIHTML(rawHTML);
+    }
+
+    normalizeOraclePoem(text) {
+        if (!text) return '';
+
+        return String(text).replace(
+            /\$\$\s*\\begin\{aligned\}([\s\S]*?)\\end\{aligned\}\s*\$\$/g,
+            (block, body) => {
+                const verses = [];
+                body.replace(/\\text\{([\s\S]*?)\}\s*([，。！？；：、]?)/g, (_match, verse, punctuation) => {
+                    const cleanVerse = verse.replace(/\s+/g, '').trim();
+                    if (cleanVerse) verses.push(`${cleanVerse}${punctuation || ''}`);
+                    return _match;
+                });
+
+                if (verses.length < 2) return block;
+
+                const lines = verses
+                    .map((verse) => `<div class="oracle-poem-line">${this.escapeHTML(verse)}</div>`)
+                    .join('\n');
+                return `\n<div class="oracle-poem">\n${lines}\n</div>\n`;
+            }
+        );
     }
 
     // 格式化Markdown文本
@@ -3812,6 +3836,24 @@ class CyberFortune {
                     .ai-analysis em {
                         color: #00aa66;
                         font-style: italic;
+                    }
+                    .oracle-poem {
+                        display: grid;
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                        gap: 8px 24px;
+                        margin: 20px auto;
+                        padding: 18px 22px;
+                        border: 1px solid #c9a65b;
+                        border-radius: 8px;
+                        background: #fffaf0;
+                    }
+                    .oracle-poem-line {
+                        min-width: 0;
+                        text-align: center;
+                        font-size: 1.05rem;
+                        line-height: 1.9;
+                        letter-spacing: 0.08em;
+                        overflow-wrap: anywhere;
                     }
                     .report-footer {
                         text-align: center;
