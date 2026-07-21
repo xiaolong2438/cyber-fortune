@@ -74,12 +74,28 @@ function testMobileContentWidthContract() {
         'mobile sections should keep compact page gutters');
     assert.match(css, /@media \(max-width: 768px\)[\s\S]*?\.content-container\s*\{[\s\S]*?width:\s*100%;/,
         'mobile content container should use the available width');
-    assert.match(css, /@media \(max-width: 560px\)[\s\S]*?\.result-panel\s*\{[\s\S]*?padding:\s*0\.75rem;/,
+    assert.match(css, /@media \(max-width: 560px\)[\s\S]*?#zhiming-result,\s*#qiming-result,\s*#ceming-result,\s*#hehun-result\s*\{[\s\S]*?padding:\s*0\.75rem;/,
         'mobile result cards should use compact padding');
     assert.match(css, /@media \(max-width: 560px\)[\s\S]*?#qiming-result \.ai-result-section,[\s\S]*?padding:\s*0\.75rem;/,
         'mobile AI sections should not add excessive horizontal padding');
     assert.match(css, /@media \(max-width: 560px\)[\s\S]*?#qiming-result \.ai-output,[\s\S]*?padding:\s*0\.75rem;/,
         'mobile AI output should preserve readable width');
+}
+
+function testUnifiedResultLayoutContract() {
+    const sharedDesktopWorkspace = /#zhiming \.content-container:has\(#zhiming-result\.show\),\s*#qiming \.content-container:has\(#qiming-result\.show\),\s*#ceming \.content-container:has\(#ceming-result\.show\),\s*#hehun \.content-container:has\(#hehun-result\.show\)\s*\{[\s\S]*?max-width:\s*1440px;[\s\S]*?grid-template-columns:\s*minmax\(300px, 360px\) minmax\(0, 1fr\);/;
+    assert.match(css, sharedDesktopWorkspace,
+        'all visible result workspaces should use the Zhiming desktop width and columns');
+
+    const mobileMedia = css.slice(css.indexOf('@media (max-width: 768px)'), css.indexOf('@media (max-width: 720px)'));
+    const sharedMobileWorkspace = /#zhiming \.content-container:has\(#zhiming-result\.show\),\s*#qiming \.content-container:has\(#qiming-result\.show\),\s*#ceming \.content-container:has\(#ceming-result\.show\),\s*#hehun \.content-container:has\(#hehun-result\.show\)\s*\{[\s\S]*?max-width:\s*1040px;[\s\S]*?grid-template-columns:\s*1fr;/;
+    assert.match(mobileMedia, sharedMobileWorkspace,
+        'all visible result workspaces should use the same mobile single-column width');
+
+    assert.match(css, /#zhiming-result,\s*#qiming-result,\s*#ceming-result,\s*#hehun-result\s*\{[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;/,
+        'all result panels should share the same width and shrinking guards');
+    assert.match(css, /#zhiming-result \.result-actions,\s*#qiming-result \.result-actions,\s*#ceming-result \.result-actions,\s*#hehun-result \.result-actions\s*\{/,
+        'all result panels should share the same action layout');
 }
 
 function createStorage() {
@@ -141,6 +157,7 @@ try {
     testMarkupContract();
     testNamingControls();
     testMobileContentWidthContract();
+    testUnifiedResultLayoutContract();
     testProfilePrivacyContract();
     console.log('✓ usability UI and privacy tests passed');
 } catch (error) {
