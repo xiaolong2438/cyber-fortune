@@ -78,17 +78,18 @@ test('connection testing validates the entered model at the chat endpoint', () =
 });
 
 test('modified immutable assets use the current cache version', () => {
-    for (const asset of [
-        'css/style.css',
-        'js/ziwei-calculator.js',
-        'js/name-calculator.js',
-        'js/config/config-manager.js',
-        'js/config/ai-config.js'
-    ]) {
-        assert.match(indexHtml, new RegExp(`${asset.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\?v=20260721`));
+    const versionedAssets = {
+        'css/style.css': '20260722layout1',
+        'js/ziwei-calculator.js': '20260721',
+        'js/name-calculator.js': '20260721',
+        'js/config/config-manager.js': '20260721',
+        'js/config/ai-config.js': '20260721'
+    };
+    for (const [asset, version] of Object.entries(versionedAssets)) {
+        assert.match(indexHtml, new RegExp(`${asset.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\?v=${version}`));
     }
     for (const asset of ['js/config/api-client.js', 'js/main.js']) {
-        const version = asset === 'js/main.js' ? '20260721gold' : '20260719builtin1';
+        const version = asset === 'js/main.js' ? '20260722layout1' : '20260719builtin1';
         assert.match(indexHtml, new RegExp(`${asset.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\?v=${version}`));
     }
 });
