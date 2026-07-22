@@ -4139,10 +4139,10 @@ select option {
 #ceming-result .ai-result-section,
 #hehun-result .ai-marriage-result-section {
     margin: 0.95rem 0 0;
-    padding: 0.95rem;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    background: rgba(8, 11, 17, 0.35);
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
 }
 
 #qiming-result .ai-result-section h5,
@@ -4159,10 +4159,10 @@ select option {
     width: 100%;
     max-width: none;
     margin: 0;
-    padding: clamp(0.95rem, 2vw, 1.3rem);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    background: rgba(6, 9, 14, 0.6);
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
     color: #e3e8ee;
     font-size: 0.9rem;
     line-height: 1.85;
