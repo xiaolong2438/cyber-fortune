@@ -596,6 +596,7 @@ class CyberFortune {
         // 显示结果面板
         resultPanel.style.display = 'block';
         resultPanel.classList.add('show');
+        resultPanel.closest('.content-container')?.classList.add('has-result');
 
         // 绑定AI分析按钮事件
         this.bindAIAnalysisEvents(birthData, baziResult, prompt, ziweiResult);
@@ -1661,6 +1662,7 @@ class CyberFortune {
         // 显示结果面板
         resultPanel.style.display = 'block';
         resultPanel.classList.add('show');
+        resultPanel.closest('.content-container')?.classList.add('has-result');
         resultPanel.scrollIntoView({ behavior: 'smooth' });
 
         // 自动开始AI起名分析
@@ -2654,6 +2656,7 @@ class CyberFortune {
 
         resultPanel.style.display = 'block';
         resultPanel.classList.add('show');
+        resultPanel.closest('.content-container')?.classList.add('has-result');
         resultPanel.scrollIntoView({ behavior: 'smooth' });
 
         // 自动开始AI测名分析
@@ -3383,6 +3386,7 @@ class CyberFortune {
         // 显示结果面板
         resultPanel.style.display = 'block';
         resultPanel.classList.add('show');
+        resultPanel.closest('.content-container')?.classList.add('has-result');
         resultPanel.scrollIntoView({ behavior: 'smooth' });
 
         // 自动开始AI合婚分析

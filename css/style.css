@@ -3405,10 +3405,10 @@ select option {
    紫微星盘（react-iztro）
    -------------------------------------------------------------------------- */
 
-#zhiming .content-container:has(#zhiming-result.show),
-#qiming .content-container:has(#qiming-result.show),
-#ceming .content-container:has(#ceming-result.show),
-#hehun .content-container:has(#hehun-result.show) {
+#zhiming .content-container.has-result,
+#qiming .content-container.has-result,
+#ceming .content-container.has-result,
+#hehun .content-container.has-result {
     max-width: 1440px;
     grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
 }
@@ -4710,10 +4710,10 @@ select option {
     .names-grid .name-text { font-size: 1.35rem; }
     .name-meta-row { align-items: flex-start; flex-direction: column; gap: 0.2rem; }
 
-    #zhiming .content-container:has(#zhiming-result.show),
-    #qiming .content-container:has(#qiming-result.show),
-    #ceming .content-container:has(#ceming-result.show),
-    #hehun .content-container:has(#hehun-result.show) {
+    #zhiming .content-container.has-result,
+    #qiming .content-container.has-result,
+    #ceming .content-container.has-result,
+    #hehun .content-container.has-result {
         max-width: 1040px;
         grid-template-columns: 1fr;
     }

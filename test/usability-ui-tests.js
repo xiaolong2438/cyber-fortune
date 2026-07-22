@@ -83,12 +83,12 @@ function testMobileContentWidthContract() {
 }
 
 function testUnifiedResultLayoutContract() {
-    const sharedDesktopWorkspace = /#zhiming \.content-container:has\(#zhiming-result\.show\),\s*#qiming \.content-container:has\(#qiming-result\.show\),\s*#ceming \.content-container:has\(#ceming-result\.show\),\s*#hehun \.content-container:has\(#hehun-result\.show\)\s*\{[\s\S]*?max-width:\s*1440px;[\s\S]*?grid-template-columns:\s*minmax\(300px, 360px\) minmax\(0, 1fr\);/;
+    const sharedDesktopWorkspace = /#zhiming \.content-container\.has-result,\s*#qiming \.content-container\.has-result,\s*#ceming \.content-container\.has-result,\s*#hehun \.content-container\.has-result\s*\{[\s\S]*?max-width:\s*1440px;[\s\S]*?grid-template-columns:\s*minmax\(300px, 360px\) minmax\(0, 1fr\);/;
     assert.match(css, sharedDesktopWorkspace,
         'all visible result workspaces should use the Zhiming desktop width and columns');
 
     const mobileMedia = css.slice(css.indexOf('@media (max-width: 768px)'), css.indexOf('@media (max-width: 720px)'));
-    const sharedMobileWorkspace = /#zhiming \.content-container:has\(#zhiming-result\.show\),\s*#qiming \.content-container:has\(#qiming-result\.show\),\s*#ceming \.content-container:has\(#ceming-result\.show\),\s*#hehun \.content-container:has\(#hehun-result\.show\)\s*\{[\s\S]*?max-width:\s*1040px;[\s\S]*?grid-template-columns:\s*1fr;/;
+    const sharedMobileWorkspace = /#zhiming \.content-container\.has-result,\s*#qiming \.content-container\.has-result,\s*#ceming \.content-container\.has-result,\s*#hehun \.content-container\.has-result\s*\{[\s\S]*?max-width:\s*1040px;[\s\S]*?grid-template-columns:\s*1fr;/;
     assert.match(mobileMedia, sharedMobileWorkspace,
         'all visible result workspaces should use the same mobile single-column width');
 
@@ -96,6 +96,13 @@ function testUnifiedResultLayoutContract() {
         'all result panels should share the same width and shrinking guards');
     assert.match(css, /#zhiming-result \.result-actions,\s*#qiming-result \.result-actions,\s*#ceming-result \.result-actions,\s*#hehun-result \.result-actions\s*\{/,
         'all result panels should share the same action layout');
+    ['displayZhimingResult', 'displayQimingResult', 'displayCemingResult', 'displayHehunResult'].forEach((method) => {
+        const start = mainJs.indexOf(`\n    ${method}(`);
+        const end = mainJs.indexOf('\n    }', start);
+        assert.ok(start >= 0 && end > start, `missing ${method}`);
+        assert.match(mainJs.slice(start, end), /closest\('\.content-container'\)\?\.classList\.add\('has-result'\)/,
+            `${method} should mark its workspace as containing a result`);
+    });
 }
 
 function createStorage() {
