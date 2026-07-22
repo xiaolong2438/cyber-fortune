@@ -4872,6 +4872,26 @@ select option {
         padding: 0.75rem;
     }
 
+    #qiming-result .ai-naming-analysis,
+    #ceming-result .ai-naming-analysis,
+    #hehun-result .ai-analysis-section,
+    #qiming-result .ai-result-section,
+    #ceming-result .ai-result-section,
+    #hehun-result .ai-marriage-result-section,
+    #qiming-result .ai-output,
+    #ceming-result .ai-output,
+    #hehun-result .ai-marriage-output {
+        padding: 0;
+        border: 0;
+        background: transparent;
+    }
+
+    #qiming-result .ai-naming-analysis,
+    #ceming-result .ai-naming-analysis,
+    #hehun-result .ai-analysis-section {
+        border-radius: 0;
+    }
+
     #qiming-result .result-content,
     #ceming-result .result-content,
     #hehun-result .result-content {

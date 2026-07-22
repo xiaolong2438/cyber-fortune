@@ -80,6 +80,12 @@ function testMobileContentWidthContract() {
         'mobile AI sections should not add excessive horizontal padding');
     assert.match(css, /@media \(max-width: 560px\)[\s\S]*?#qiming-result \.ai-output,[\s\S]*?padding:\s*0\.75rem;/,
         'mobile AI output should preserve readable width');
+    assert.match(css, /@media \(max-width: 560px\)[\s\S]*?#qiming-result \.ai-naming-analysis,[\s\S]*?padding:\s*0;[\s\S]*?border:\s*0;[\s\S]*?background:\s*transparent;/,
+        'mobile AI naming analysis should flatten its outer card');
+    assert.match(css, /@media \(max-width: 560px\)[\s\S]*?#qiming-result \.ai-result-section,[\s\S]*?padding:\s*0;[\s\S]*?border:\s*0;[\s\S]*?background:\s*transparent;/,
+        'mobile AI result section should flatten its nested card');
+    assert.match(css, /@media \(max-width: 560px\)[\s\S]*?#qiming-result \.ai-output,[\s\S]*?padding:\s*0;[\s\S]*?border:\s*0;[\s\S]*?background:\s*transparent;/,
+        'mobile AI output should flatten its innermost card');
 }
 
 function testUnifiedResultLayoutContract() {
