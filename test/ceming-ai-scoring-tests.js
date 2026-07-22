@@ -141,6 +141,15 @@ test('AI Markdown rendering is sanitized by a local DOMPurify loaded before main
     assert.doesNotMatch(source, /innerHTML\s*=\s*marked\.parse/);
 });
 
+test('KaTeX assets load before the AI renderer and formulas use the safe auto-render hook', () => {
+    assert.match(indexHtml, /katex@0\.16\.22\/dist\/katex\.min\.css/);
+    assert.match(indexHtml, /katex@0\.16\.22\/dist\/katex\.min\.js/);
+    assert.match(indexHtml, /katex@0\.16\.22\/dist\/contrib\/auto-render\.min\.js/);
+    assert.match(indexHtml, /auto-render\.min\.js[\s\S]*js\/main\.js/);
+    assert.match(source, /renderMathInElement/);
+    assert.match(source, /renderAIFormula/);
+});
+
 test('aligned oracle poems are converted into paired verses instead of literal LaTeX', () => {
     const instance = Object.create(CyberFortune.prototype);
     const latexPoem = String.raw`$$ \begin{aligned}

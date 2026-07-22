@@ -2278,6 +2278,7 @@ class CyberFortune {
                             if (content) {
                                 fullResponse += content;
                                 aiOutput.innerHTML = this.renderAIMarkdown(fullResponse);
+                                this.renderAIFormula(aiOutput);
                             }
                         } catch (e) {
                             // 忽略JSON解析错误
@@ -2299,6 +2300,7 @@ class CyberFortune {
                 this.fullAINamingResponse = fullResponse;
                 this.applyAINamingTop5(fullResponse, nameSuggestions);
                 aiOutput.innerHTML = this.renderAIMarkdown(this.stripAINamingRankingJSON(fullResponse));
+                this.renderAIFormula(aiOutput);
 
                 // 强制移除滚动条
                 this.removeAINamingOutputScrollbar();
@@ -3068,6 +3070,7 @@ class CyberFortune {
                             if (content) {
                                 fullResponse += content;
                                 aiOutput.innerHTML = this.formatMarkdown(fullResponse);
+                                this.renderAIFormula(aiOutput);
                                 aiOutput.scrollTop = aiOutput.scrollHeight;
                                 console.log('收到内容片段:', content.length, '字符');
                             }
@@ -3082,6 +3085,7 @@ class CyberFortune {
             console.log('AI分析完成，总响应长度:', fullResponse.length);
             this.applyCemingAIScore(fullResponse);
             aiOutput.innerHTML = this.formatMarkdown(this.stripCemingScoringJSON(fullResponse));
+            this.renderAIFormula(aiOutput);
             processingSteps.innerHTML += '✅ AI测名分析完成<br>';
             processingMessage.textContent = '分析完成！';
 
@@ -3115,6 +3119,7 @@ class CyberFortune {
 
                 if (content) {
                     aiOutput.innerHTML = this.formatMarkdown(this.stripCemingScoringJSON(content));
+                    this.renderAIFormula(aiOutput);
                     this.fullCemingAIResponse = content;
                     this.applyCemingAIScore(content);
                     copyBtn.style.display = 'block';
@@ -3223,6 +3228,20 @@ class CyberFortune {
             });
         }
         return this.escapeHTML(html);
+    }
+
+    renderAIFormula(container) {
+        if (!container || typeof window.renderMathInElement !== 'function' || !window.katex) return;
+
+        window.renderMathInElement(container, {
+            delimiters: [
+                { left: '$$', right: '$$', display: true },
+                { left: '\\[', right: '\\]', display: true },
+                { left: '\\(', right: '\\)', display: false }
+            ],
+            throwOnError: false,
+            strict: 'ignore'
+        });
     }
 
     renderAIMarkdown(text) {
@@ -3482,6 +3501,7 @@ class CyberFortune {
                             if (content) {
                                 fullResponse += content;
                                 aiOutput.innerHTML = this.renderAIMarkdown(fullResponse);
+                                this.renderAIFormula(aiOutput);
                             }
                         } catch (e) {
                             // 忽略JSON解析错误
@@ -6208,6 +6228,7 @@ class CyberFortune {
                                 // 实时更新显示
                                 if (output) {
                                     output.innerHTML = this.formatMarriageAIResponse(fullResponse);
+                                    this.renderAIFormula(output);
                                 }
                             }
                         } catch (e) {
@@ -6244,7 +6265,10 @@ class CyberFortune {
                 if (!content) throw new Error('AI返回内容为空');
 
                 if (resultSection) resultSection.style.display = 'block';
-                if (output) output.innerHTML = this.formatMarriageAIResponse(content);
+                if (output) {
+                    output.innerHTML = this.formatMarriageAIResponse(content);
+                    this.renderAIFormula(output);
+                }
                 this.fullMarriageAIResponse = content;
                 this.applyMarriageAIScore(content);
                 if (copyBtn) copyBtn.style.display = 'inline-block';

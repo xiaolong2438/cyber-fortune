@@ -89,7 +89,7 @@ test('modified immutable assets use the current cache version', () => {
         assert.match(indexHtml, new RegExp(`${asset.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\?v=${version}`));
     }
     for (const asset of ['js/config/api-client.js', 'js/main.js']) {
-        const version = asset === 'js/main.js' ? '20260722layout1' : '20260719builtin1';
+        const version = asset === 'js/main.js' ? '20260722katex1' : '20260719builtin1';
         assert.match(indexHtml, new RegExp(`${asset.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\?v=${version}`));
     }
 });
