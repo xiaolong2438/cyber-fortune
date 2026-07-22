@@ -4156,7 +4156,8 @@ select option {
 #qiming-result .ai-output,
 #ceming-result .ai-output,
 #hehun-result .ai-marriage-output {
-    max-width: 82ch;
+    width: 100%;
+    max-width: none;
     margin: 0;
     padding: clamp(0.95rem, 2vw, 1.3rem);
     border: 1px solid var(--border-color);

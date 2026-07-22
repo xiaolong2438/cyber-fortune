@@ -102,6 +102,8 @@ function testUnifiedResultLayoutContract() {
         'all result panels should share the same width and shrinking guards');
     assert.match(css, /#zhiming-result \.result-actions,\s*#qiming-result \.result-actions,\s*#ceming-result \.result-actions,\s*#hehun-result \.result-actions\s*\{/,
         'all result panels should share the same action layout');
+    assert.match(css, /#qiming-result \.ai-output,\s*#ceming-result \.ai-output,\s*#hehun-result \.ai-marriage-output\s*\{[\s\S]*?width:\s*100%;[\s\S]*?max-width:\s*none;/,
+        'AI analysis output should fill the available result width');
     ['displayZhimingResult', 'displayQimingResult', 'displayCemingResult', 'displayHehunResult'].forEach((method) => {
         const start = mainJs.indexOf(`\n    ${method}(`);
         const end = mainJs.indexOf('\n    }', start);

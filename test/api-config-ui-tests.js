@@ -79,7 +79,7 @@ test('connection testing validates the entered model at the chat endpoint', () =
 
 test('modified immutable assets use the current cache version', () => {
     const versionedAssets = {
-        'css/style.css': '20260722layout2',
+        'css/style.css': '20260722layout3',
         'js/ziwei-calculator.js': '20260721',
         'js/name-calculator.js': '20260721',
         'js/config/config-manager.js': '20260721',
